@@ -23,6 +23,9 @@ contract L2RegistryFactory {
     /// @notice The implementation contract to clone
     address public immutable implementation;
 
+    /// @notice The name of the contract
+    string public constant name = "Durin";
+
     /// @notice Emitted when a new registry is deployed
     /// @param name The parent ENS name for the registry
     /// @param admin The address granted admin roles for the new registry
@@ -34,28 +37,28 @@ contract L2RegistryFactory {
     }
 
     /// @notice Deploys a new L2Registry contract with default parameters
-    /// @param name The parent ENS name for the registry
+    /// @param _name The parent ENS name for the registry
     /// @return address The address of the newly deployed registry clone
-    function deployRegistry(string calldata name) external returns (address) {
-        return deployRegistry(name, name, "", msg.sender);
+    function deployRegistry(string calldata _name) external returns (address) {
+        return deployRegistry(_name, _name, "", msg.sender);
     }
 
     /// @notice Deploys a new L2Registry contract with specified parameters
-    /// @param name The parent ENS name for the registry
-    /// @param symbol The symbol for the registry's ERC721 token
-    /// @param baseUri The URI for the NFT's metadata
-    /// @param admin The address to grant admin roles to
+    /// @param _name The parent ENS name for the registry
+    /// @param _symbol The symbol for the registry's ERC721 token
+    /// @param _baseUri The URI for the NFT's metadata
+    /// @param _admin The address to grant admin roles to
     /// @return address The address of the newly deployed registry clone
     /// @dev Uses minimal proxy pattern to create cheap clones of the implementation
     function deployRegistry(
-        string calldata name,
-        string calldata symbol,
-        string memory baseUri,
-        address admin
+        string calldata _name,
+        string calldata _symbol,
+        string memory _baseUri,
+        address _admin
     ) public returns (address) {
         address registry = Clones.clone(implementation);
-        L2Registry(registry).initialize(name, symbol, baseUri, admin);
-        emit RegistryDeployed(name, admin, registry);
+        L2Registry(registry).initialize(_name, _symbol, _baseUri, _admin);
+        emit RegistryDeployed(_name, _admin, registry);
         return registry;
     }
 }
