@@ -14,12 +14,13 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {BytesUtils} from "@ensdomains/ens-contracts/utils/BytesUtils.sol";
 
 import {ENSDNSUtils} from "./utils/ENSDNSUtils.sol";
+import {L2Resolver} from "./L2Resolver.sol";
 
 /// @title ENS Subname Registry
 /// @author NameStone
 /// @notice Manages ENS subname registration and management on L2
 /// @dev Combined Registry, BaseRegistrar and Resolver from the official .eth contracts
-contract L2Registry is Initializable, ERC721, AccessControl {
+contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
     using ENSDNSUtils for string;
 
     /*//////////////////////////////////////////////////////////////
@@ -57,9 +58,6 @@ contract L2Registry is Initializable, ERC721, AccessControl {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice Thrown when caller lacks required permissions
-    error Unauthorized();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -182,7 +180,7 @@ contract L2Registry is Initializable, ERC721, AccessControl {
 
     function supportsInterface(
         bytes4 interfaceId
-    ) public view override(ERC721, AccessControl) returns (bool) {
+    ) public view override(ERC721, AccessControl, L2Resolver) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 }
