@@ -12,7 +12,7 @@ import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 
 import {L2Registry} from "./L2Registry.sol";
 
-/// @title Durin
+/// @title Durin Factory
 /// @author NameStone
 /// @notice Facilitates the deployment of new ENS subname registries
 contract L2RegistryFactory {

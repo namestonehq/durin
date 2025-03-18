@@ -16,16 +16,12 @@ import {BytesUtils} from "@ensdomains/ens-contracts/utils/BytesUtils.sol";
 import {ENSDNSUtils} from "./utils/ENSDNSUtils.sol";
 import {L2Resolver} from "./L2Resolver.sol";
 
-/// @title ENS Subname Registry
+/// @title Durin Registry
 /// @author NameStone
 /// @notice Manages ENS subname registration and management on L2
 /// @dev Combined Registry, BaseRegistrar and Resolver from the official .eth contracts
 contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
     using ENSDNSUtils for string;
-
-    /*//////////////////////////////////////////////////////////////
-                                STRUCTS
-    //////////////////////////////////////////////////////////////*/
 
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
@@ -38,14 +34,14 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
     /// @notice Total number of registered names
     uint256 public totalSupply;
     /// @notice The parent ENS node
-    bytes32 public node;
+    bytes32 public parentNode;
 
     string private _tokenName;
     string private _tokenSymbol;
     string private _tokenBaseURI;
 
     /// @notice Mapping of node (namehash) to name (DNS-encoded)
-    /// @dev Same mapping as in NameWrapper
+    /// @dev Same mapping as NameWrapper
     mapping(bytes32 node => bytes name) public names;
 
     /*//////////////////////////////////////////////////////////////
@@ -58,6 +54,9 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+
+    error LabelTooShort();
+    error LabelTooLong(string label);
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -85,7 +84,7 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
         _disableInitializers();
     }
 
-    /// @notice Initializes the registry with name, symbol, and base URI
+    /// @notice Initializes the registry
     /// @param tokenName The parent ENS name, and name of the NFT collection
     /// @param tokenSymbol The symbol of the NFT collection
     /// @param baseURI The base URI of the NFT collection
@@ -99,7 +98,8 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
         _tokenName = tokenName;
         _tokenSymbol = tokenSymbol;
         _tokenBaseURI = baseURI;
-        node = _namehash(tokenName);
+        parentNode = _namehash(tokenName);
+        names[parentNode] = tokenName.dnsEncode();
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(ADMIN_ROLE, admin);
@@ -110,33 +110,34 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Registers a new name
-    /// @param label The name to register
+    /// @dev Only callable by addresses with `REGISTRAR_ROLE`
+    /// @param label The label to register
     /// @param owner The address that will own the name
-    /// @dev Only callable by addresses with registrar role
     function register(
         string calldata label,
         address owner
     ) external onlyRole(REGISTRAR_ROLE) {
-        bytes32 labelhash = keccak256(abi.encodePacked(label));
-        uint256 tokenId = uint256(labelhash);
-        // This will fail if the node is already registered
-        _safeMint(owner, tokenId);
-        // _labels[labelhash] = label;
+        bytes32 node = _makeNode(parentNode, _labelhash(label));
+
+        // This will revert if the node is already registered
+        _safeMint(owner, uint256(node));
+
         totalSupply++;
+        names[node] = _addLabel(label, names[parentNode]);
         emit Registered(label, owner);
     }
 
-    /// @notice The token collection name.
+    /// @notice The NFT collection name.
     function name() public view override returns (string memory) {
         return _tokenName;
     }
 
-    /// @notice The token collection symbol.
+    /// @notice The NFT collection symbol.
     function symbol() public view override returns (string memory) {
         return _tokenSymbol;
     }
 
-    /// @notice The base URI for token metadata.
+    /// @notice The base URI for NFT metadata.
     function _baseURI() internal view virtual override returns (string memory) {
         return _tokenBaseURI;
     }
@@ -170,8 +171,32 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    function _labelhash(string calldata label) private pure returns (bytes32) {
+        return keccak256(abi.encodePacked(label));
+    }
+
     function _namehash(string calldata _name) private pure returns (bytes32) {
         return BytesUtils.namehash(_name.dnsEncode(), 0);
+    }
+
+    function _makeNode(
+        bytes32 node,
+        bytes32 labelhash
+    ) private pure returns (bytes32) {
+        return keccak256(abi.encodePacked(node, labelhash));
+    }
+
+    function _addLabel(
+        string memory label,
+        bytes memory _name
+    ) internal pure returns (bytes memory ret) {
+        if (bytes(label).length < 1) {
+            revert LabelTooShort();
+        }
+        if (bytes(label).length > 255) {
+            revert LabelTooLong(label);
+        }
+        return abi.encodePacked(uint8(bytes(label).length), label, _name);
     }
 
     /*//////////////////////////////////////////////////////////////

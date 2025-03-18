@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+// ***********************************************
+// ▗▖  ▗▖ ▗▄▖ ▗▖  ▗▖▗▄▄▄▖ ▗▄▄▖▗▄▄▄▖▗▄▖ ▗▖  ▗▖▗▄▄▄▖
+// ▐▛▚▖▐▌▐▌ ▐▌▐▛▚▞▜▌▐▌   ▐▌     █ ▐▌ ▐▌▐▛▚▖▐▌▐▌
+// ▐▌ ▝▜▌▐▛▀▜▌▐▌  ▐▌▐▛▀▀▘ ▝▀▚▖  █ ▐▌ ▐▌▐▌ ▝▜▌▐▛▀▀▘
+// ▐▌  ▐▌▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖▗▄▄▞▘  █ ▝▚▄▞▘▐▌  ▐▌▐▙▄▄▖
+// ***********************************************
+
 import "@ensdomains/ens-contracts/resolvers/profiles/ABIResolver.sol";
 import "@ensdomains/ens-contracts/resolvers/profiles/AddrResolver.sol";
 import "@ensdomains/ens-contracts/resolvers/profiles/ContentHashResolver.sol";
@@ -9,8 +16,9 @@ import "@ensdomains/ens-contracts/resolvers/Multicallable.sol";
 
 import "./L2Registry.sol";
 
-/// @notice A basic resolver that any registry can use to store standard ENS records.
-/// @dev This contract is inherited by L2Registry, making the registry available via `address(this)`.
+/// @author NameStone
+/// @notice Basic resolver to store standard ENS records
+/// @dev This contract is inherited by L2Registry, making the registry available via `address(this)`
 contract L2Resolver is
     Multicallable,
     ABIResolver,
