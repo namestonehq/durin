@@ -7,3 +7,6 @@
 [submodule "lib/foundry-multichain-deploy"]
 	path = lib/foundry-multichain-deploy
 	url = https://github.com/chainsafe/foundry-multichain-deploy
+[submodule "lib/ens-contracts"]
+	path = lib/ens-contracts
+	url = https://github.com/ensdomains/ens-contracts

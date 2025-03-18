@@ -14,13 +14,17 @@ pragma solidity ^0.8.20;
 /// @notice Combined registry and resolver contract for Layer 2 name resolution
 /// @dev Implements ERC721 for name ownership and AccessControl for permissions
 
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {BytesUtils} from "@ensdomains/ens-contracts/utils/BytesUtils.sol";
+
+import {ENSDNSUtils} from "./utils/ENSDNSUtils.sol";
 
 /// @title Registry/Resolver All-in-one (for Layer 2)
 /// @notice Manages name registration, ownership, and resolution on Layer 2
 /// @dev Uses labelhash instead of node for resolution functions
-contract L2Registry is ERC721, AccessControl {
+contract L2Registry is Initializable, ERC721, AccessControl {
     /// @notice Implements interface detection for ERC721 and AccessControl
     /// @param x The interface identifier to check
     /// @return bool True if the interface is supported
@@ -43,6 +47,7 @@ contract L2Registry is ERC721, AccessControl {
         }
         _;
     }
+
     /// @notice Thrown when caller lacks required permissions
     error Unauthorized();
     /// @notice Thrown when initialization is attempted twice
@@ -90,8 +95,6 @@ contract L2Registry is ERC721, AccessControl {
      */
     /// @notice Total number of registered names
     uint256 public totalSupply;
-    /// @notice Flag to track initialization status
-    bool private _initialized;
     /// @notice Base URI for token metadata
     string public baseUri;
     ///  @notice Store name and symbol as public variables
@@ -107,46 +110,43 @@ contract L2Registry is ERC721, AccessControl {
     mapping(bytes32 labelhash => string) _labels;
 
     // Initialize with placeholder values that will be updated in initialize()
-    constructor() ERC721("", "") {}
+    constructor() ERC721("", "") {
+        _disableInitializers();
+    }
 
     /// @notice Initializes the registry with name, symbol, and base URI
     /// @param tokenName The name for the ERC721 token
     /// @param tokenSymbol The symbol for the ERC721 token
     /// @param _baseUri The base URI for token metadata
     function initialize(
-        string memory tokenName,
-        string memory tokenSymbol,
-        string memory _baseUri
-    ) external {
-        if (_initialized) {
-            revert AlreadyInitialized();
-        }
-
-        _initialized = true;
-
+        string calldata tokenName,
+        string calldata tokenSymbol,
+        string calldata _baseUri,
+        address admin
+    ) external initializer {
         // Store the name and symbol in our public variables
         _name = tokenName;
         _symbol = tokenSymbol;
         baseUri = _baseUri;
 
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(ADMIN_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        _grantRole(ADMIN_ROLE, admin);
     }
 
     // Override name() and symbol() from ERC721
-    function name() public view override returns (string memory) {
-        return _name;
-    }
+    // function name() public view override returns (string memory) {
+    //     return _name;
+    // }
 
-    function symbol() public view override returns (string memory) {
-        return _symbol;
-    }
+    // function symbol() public view override returns (string memory) {
+    //     return _symbol;
+    // }
 
     /// @notice Returns the base URI for token metadata
     /// @return string The base URI
-    function _baseURI() internal view override returns (string memory) {
-        return baseUri;
-    }
+    // function _baseURI() internal view override returns (string memory) {
+    //     return baseUri;
+    // }
 
     /// @notice Adds a new registrar address
     /// @param registrar The address to grant registrar role to
@@ -233,9 +233,9 @@ contract L2Registry is ERC721, AccessControl {
     /// @notice Sets the base URI for token metadata
     /// @param _baseUri The new base URI
     /// @dev Only callable by admin role
-    function setBaseURI(string memory _baseUri) external onlyRole(ADMIN_ROLE) {
-        baseUri = _baseUri;
-    }
+    // function setBaseURI(string memory _baseUri) external onlyRole(ADMIN_ROLE) {
+    //     baseUri = _baseUri;
+    // }
 
     /// @notice Internal function to set address records
     /// @param labelhash The name's hash
@@ -329,5 +329,11 @@ contract L2Registry is ERC721, AccessControl {
         if (chash.length > 0) {
             _setContenthash(labelhash, chash);
         }
+    }
+
+    function _deriveNode(string calldata name) internal pure returns (bytes32) {
+        bytes memory dnsEncodedName = ENSDNSUtils.dnsEncode(name);
+        bytes32 node = BytesUtils.namehash(dnsEncodedName, 0);
+        return node;
     }
 }
