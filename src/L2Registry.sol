@@ -20,6 +20,8 @@ import {ENSDNSUtils} from "./utils/ENSDNSUtils.sol";
 /// @notice Manages ENS subname registration and management on L2
 /// @dev Combined Registry, BaseRegistrar and Resolver from the official .eth contracts
 contract L2Registry is Initializable, ERC721, AccessControl {
+    using ENSDNSUtils for string;
+
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -34,10 +36,12 @@ contract L2Registry is Initializable, ERC721, AccessControl {
     bytes32 public constant REGISTRAR_ROLE = keccak256("REGISTRAR_ROLE");
     /// @notice Total number of registered names
     uint256 public totalSupply;
+    /// @notice The parent ENS node
+    bytes32 public node;
 
-    string private _name;
-    string private _symbol;
-    string private _baseUri;
+    string private _tokenName;
+    string private _tokenSymbol;
+    string private _tokenBaseURI;
 
     /// @notice Mapping of node (namehash) to name (DNS-encoded)
     /// @dev Same mapping as in NameWrapper
@@ -84,17 +88,20 @@ contract L2Registry is Initializable, ERC721, AccessControl {
     }
 
     /// @notice Initializes the registry with name, symbol, and base URI
-    /// @param tokenName The name for the ERC721 token
-    /// @param tokenSymbol The symbol for the ERC721 token
+    /// @param tokenName The parent ENS name, and name of the NFT collection
+    /// @param tokenSymbol The symbol of the NFT collection
+    /// @param baseURI The base URI of the NFT collection
+    /// @param admin The address that will be granted admin role
     function initialize(
         string calldata tokenName,
         string calldata tokenSymbol,
         string calldata baseURI,
         address admin
     ) external initializer {
-        _name = tokenName;
-        _symbol = tokenSymbol;
-        _baseUri = baseURI;
+        _tokenName = tokenName;
+        _tokenSymbol = tokenSymbol;
+        _tokenBaseURI = baseURI;
+        node = _namehash(tokenName);
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(ADMIN_ROLE, admin);
@@ -123,17 +130,17 @@ contract L2Registry is Initializable, ERC721, AccessControl {
 
     /// @notice The token collection name.
     function name() public view override returns (string memory) {
-        return _name;
+        return _tokenName;
     }
 
     /// @notice The token collection symbol.
     function symbol() public view override returns (string memory) {
-        return _symbol;
+        return _tokenSymbol;
     }
 
     /// @notice The base URI for token metadata.
     function _baseURI() internal view virtual override returns (string memory) {
-        return _baseUri;
+        return _tokenBaseURI;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -158,18 +165,16 @@ contract L2Registry is Initializable, ERC721, AccessControl {
     /// @param baseURI The new base URI
     /// @dev Only callable by admin role
     function setBaseURI(string memory baseURI) external onlyRole(ADMIN_ROLE) {
-        _baseUri = baseURI;
+        _tokenBaseURI = baseURI;
     }
 
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    // function _deriveNode(string calldata name) private pure returns (bytes32) {
-    //     bytes memory dnsEncodedName = ENSDNSUtils.dnsEncode(name);
-    //     bytes32 node = BytesUtils.namehash(dnsEncodedName, 0);
-    //     return node;
-    // }
+    function _namehash(string calldata _name) private pure returns (bytes32) {
+        return BytesUtils.namehash(_name.dnsEncode(), 0);
+    }
 
     /*//////////////////////////////////////////////////////////////
                            REQUIRED OVERRIDES
