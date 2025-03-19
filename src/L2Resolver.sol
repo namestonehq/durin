@@ -8,15 +8,15 @@ pragma solidity ^0.8.20;
 // ▐▌  ▐▌▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖▗▄▄▞▘  █ ▝▚▄▞▘▐▌  ▐▌▐▙▄▄▖
 // ***********************************************
 
-import "@ensdomains/ens-contracts/resolvers/Multicallable.sol";
-import "@ensdomains/ens-contracts/resolvers/profiles/ABIResolver.sol";
-import "@ensdomains/ens-contracts/resolvers/profiles/AddrResolver.sol";
-import "@ensdomains/ens-contracts/resolvers/profiles/ContentHashResolver.sol";
-import "@ensdomains/ens-contracts/resolvers/profiles/TextResolver.sol";
-import "@ensdomains/ens-contracts/resolvers/profiles/ExtendedResolver.sol";
-import "@openzeppelin/contracts/access/IAccessControl.sol";
+import {Multicallable} from "@ensdomains/ens-contracts/resolvers/Multicallable.sol";
+import {ABIResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ABIResolver.sol";
+import {AddrResolver} from "@ensdomains/ens-contracts/resolvers/profiles/AddrResolver.sol";
+import {ContentHashResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ContentHashResolver.sol";
+import {TextResolver} from "@ensdomains/ens-contracts/resolvers/profiles/TextResolver.sol";
+import {ExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ExtendedResolver.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
-import "./interfaces/IL2Registry.sol";
+import {IL2Registry} from "./interfaces/IL2Registry.sol";
 
 /// @author NameStone
 /// @notice Basic resolver to store standard ENS records

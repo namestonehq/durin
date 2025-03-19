@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
-import "../src/L2Registry.sol";
-import "../src/L2RegistryFactory.sol";
+import {L2Registry} from "../src/L2Registry.sol";
+import {L2RegistryFactory} from "../src/L2RegistryFactory.sol";
+import {IL2Resolver} from "../src/interfaces/IL2Resolver.sol";
 
 contract L2RegistryTest is Test {
     L2RegistryFactory public factory;
@@ -125,13 +126,43 @@ contract L2RegistryTest is Test {
 
         // Revert when `user2` tries to update a record for the name owned by `user1`
         vm.expectRevert(
-            abi.encodeWithSelector(L2Resolver.Unauthorized.selector, node)
+            abi.encodeWithSelector(IL2Resolver.Unauthorized.selector, node)
         );
         vm.prank(user2);
         registry.setAddr(node, user2);
     }
 
-    function testFuzz_SetRecordsWithMulticall(string calldata label) public {}
+    function testFuzz_SetRecordsWithMulticall(string calldata label) public {
+        vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
+        bytes32 labelhash = keccak256(abi.encodePacked(label));
+        bytes32 node = registry.makeNode(registry.parentNode(), labelhash);
+
+        bytes[] memory data = new bytes[](3);
+
+        // setAddr(bytes32, address) = 0xd5fa2b00
+        data[0] = abi.encodeWithSelector(bytes4(0xd5fa2b00), node, user1);
+        data[1] = abi.encodeWithSelector(
+            IL2Resolver.setText.selector,
+            node,
+            "key",
+            "value"
+        );
+        data[2] = abi.encodeWithSelector(
+            IL2Resolver.setContenthash.selector,
+            node,
+            hex"1234"
+        );
+
+        vm.startPrank(admin);
+        registry.addRegistrar(admin);
+        registry.register(label, user1);
+        registry.multicallWithNodeCheck(node, data);
+        vm.stopPrank();
+
+        assertEq(registry.addr(node), user1);
+        assertEq(registry.text(node, "key"), "value");
+        assertEq(registry.contenthash(node), hex"1234");
+    }
 
     function test_ImplementationAddressNotNull() public view {
         address implAddr = factory.implementation();

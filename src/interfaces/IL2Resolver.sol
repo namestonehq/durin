@@ -28,6 +28,8 @@ interface IL2Resolver is
     ITextResolver,
     IExtendedResolver
 {
+    error Unauthorized(bytes32 node);
+
     function setABI(
         bytes32 node,
         uint256 contentType,
