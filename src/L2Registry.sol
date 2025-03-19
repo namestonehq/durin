@@ -56,24 +56,6 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
     error LabelTooLong(string label);
 
     /*//////////////////////////////////////////////////////////////
-                               MODIFIERS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Check if caller is token operator or has registrar role
-    /// @param labelhash The hash of the label to check permissions for
-    modifier onlyTokenOperatorOrRegistrar(bytes32 labelhash) {
-        address owner = _ownerOf(uint256(labelhash));
-        if (
-            owner != msg.sender &&
-            !isApprovedForAll(owner, msg.sender) &&
-            !hasRole(REGISTRAR_ROLE, msg.sender)
-        ) {
-            revert Unauthorized();
-        }
-        _;
-    }
-
-    /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
@@ -121,7 +103,8 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
         string calldata label,
         address owner
     ) external onlyRole(REGISTRAR_ROLE) {
-        bytes32 node = _makeNode(parentNode, _labelhash(label));
+        bytes32 labelhash = keccak256(abi.encodePacked(label));
+        bytes32 node = makeNode(parentNode, labelhash);
 
         // This will revert if the node is already registered
         _safeMint(owner, uint256(node));
@@ -129,6 +112,14 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
         totalSupply++;
         names[node] = _addLabel(label, names[parentNode]);
         emit Registered(label, owner);
+    }
+
+    /// @notice Helper to derive a node from a parent node and labelhash
+    function makeNode(
+        bytes32 _parentNode,
+        bytes32 _labelhash
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(_parentNode, _labelhash));
     }
 
     /// @notice The NFT collection name.
@@ -174,17 +165,6 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
-    function _labelhash(string calldata label) private pure returns (bytes32) {
-        return keccak256(abi.encodePacked(label));
-    }
-
-    function _makeNode(
-        bytes32 node,
-        bytes32 labelhash
-    ) private pure returns (bytes32) {
-        return keccak256(abi.encodePacked(node, labelhash));
-    }
 
     function _addLabel(
         string memory label,

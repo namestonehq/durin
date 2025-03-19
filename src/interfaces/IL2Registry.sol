@@ -9,12 +9,15 @@ pragma solidity ^0.8.20;
 // ***********************************************
 
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 import {IL2Resolver} from "./IL2Resolver.sol";
 
 /// @author NameStone
-interface IL2Registry is IERC721, IL2Resolver {
+interface IL2Registry is IL2Resolver, IERC721, IAccessControl {
     // State variables
+    function ADMIN_ROLE() external view returns (bytes32);
+    function REGISTRAR_ROLE() external view returns (bytes32);
     function totalSupply() external view returns (uint256);
     function parentNode() external view returns (bytes32);
     function names(bytes32 node) external view returns (bytes memory name);

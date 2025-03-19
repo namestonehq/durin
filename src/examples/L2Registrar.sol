@@ -25,7 +25,7 @@ contract L2Registrar {
 
     /// @notice Initializes the registrar with a registry contract
     /// @param _registry Address of the L2Registry contract
-    constructor(IL2Registry _registry) {
+    constructor(address _registry) {
         // Save the chainId in memory (can only access this in assembly)
         assembly {
             sstore(chainId.slot, chainid())
@@ -35,7 +35,7 @@ contract L2Registrar {
         coinType = (0x80000000 | chainId) >> 0;
 
         // Save the registry address
-        registry = _registry;
+        registry = IL2Registry(_registry);
     }
 
     /// @notice Registers a new name

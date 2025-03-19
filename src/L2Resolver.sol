@@ -14,8 +14,9 @@ import "@ensdomains/ens-contracts/resolvers/profiles/AddrResolver.sol";
 import "@ensdomains/ens-contracts/resolvers/profiles/ContentHashResolver.sol";
 import "@ensdomains/ens-contracts/resolvers/profiles/TextResolver.sol";
 import "@ensdomains/ens-contracts/resolvers/profiles/ExtendedResolver.sol";
+import "@openzeppelin/contracts/access/IAccessControl.sol";
 
-import "./L2Registry.sol";
+import "./interfaces/IL2Registry.sol";
 
 /// @author NameStone
 /// @notice Basic resolver to store standard ENS records
@@ -29,64 +30,57 @@ contract L2Resolver is
     ExtendedResolver
 {
     /*//////////////////////////////////////////////////////////////
-                            STATE VARIABLES
-    //////////////////////////////////////////////////////////////*/
-
-    mapping(address => bool) public trustedControllers;
-
-    /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    error Unauthorized();
+    error Unauthorized(bytes32 node);
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
     modifier onlyRegistryAdmin() {
-        L2Registry registry = _registry();
-        if (!registry.hasRole(registry.ADMIN_ROLE(), msg.sender)) {
-            revert Unauthorized();
+        IL2Registry registry = _registry();
+        if (!registry.hasRole(registry.REGISTRAR_ROLE(), msg.sender)) {
+            revert IAccessControl.AccessControlUnauthorizedAccount(
+                msg.sender,
+                registry.ADMIN_ROLE()
+            );
         }
         _;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            ADMIN FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    function setTrustedController(
-        address controller,
-        bool isTrusted
-    ) external onlyRegistryAdmin {
-        trustedControllers[controller] = isTrusted;
     }
 
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _registry() internal view returns (L2Registry) {
-        return L2Registry(address(this));
+    function _registry() internal view returns (IL2Registry) {
+        return IL2Registry(address(this));
     }
 
     /*//////////////////////////////////////////////////////////////
                            REQUIRED OVERRIDES
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev Reverts instead of returning false so the modifier that uses this function has better error messages.
     function isAuthorised(bytes32 node) internal view override returns (bool) {
-        if (trustedControllers[msg.sender]) {
+        IL2Registry registry = _registry();
+
+        if (registry.hasRole(registry.REGISTRAR_ROLE(), msg.sender)) {
             return true;
         }
 
-        L2Registry registry = _registry();
         uint256 tokenId = uint256(node);
         address owner = registry.ownerOf(tokenId);
 
-        return
-            (owner == msg.sender) ||
-            (registry.getApproved(tokenId) == msg.sender);
+        if (
+            (owner != msg.sender) &&
+            (registry.getApproved(tokenId) != msg.sender)
+        ) {
+            revert Unauthorized(node);
+        }
+
+        return true;
     }
 
     function supportsInterface(
