@@ -11,9 +11,8 @@ pragma solidity ^0.8.20;
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
-import {BytesUtils} from "@ensdomains/ens-contracts/utils/BytesUtils.sol";
+import {NameEncoder} from "@ensdomains/ens-contracts/utils/NameEncoder.sol";
 
-import {ENSDNSUtils} from "./utils/ENSDNSUtils.sol";
 import {L2Resolver} from "./L2Resolver.sol";
 
 /// @title Durin Registry
@@ -21,8 +20,6 @@ import {L2Resolver} from "./L2Resolver.sol";
 /// @notice Manages ENS subname registration and management on L2
 /// @dev Combined Registry, BaseRegistrar and Resolver from the official .eth contracts
 contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
-    using ENSDNSUtils for string;
-
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
@@ -95,12 +92,19 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
         string calldata baseURI,
         address admin
     ) external initializer {
+        (bytes memory dnsEncodedName, bytes32 _parentNode) = NameEncoder
+            .dnsEncodeName(tokenName);
+
+        // ERC721
         _tokenName = tokenName;
         _tokenSymbol = tokenSymbol;
         _tokenBaseURI = baseURI;
-        parentNode = _namehash(tokenName);
-        names[parentNode] = tokenName.dnsEncode();
 
+        // Registry
+        parentNode = _parentNode;
+        names[parentNode] = dnsEncodedName;
+
+        // Access control
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(ADMIN_ROLE, admin);
     }
@@ -173,10 +177,6 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
 
     function _labelhash(string calldata label) private pure returns (bytes32) {
         return keccak256(abi.encodePacked(label));
-    }
-
-    function _namehash(string calldata _name) private pure returns (bytes32) {
-        return BytesUtils.namehash(_name.dnsEncode(), 0);
     }
 
     function _makeNode(

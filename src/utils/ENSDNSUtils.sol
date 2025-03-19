@@ -2,6 +2,8 @@
 pragma solidity ^0.8.20;
 
 /// @author raffy.eth
+/// @dev If you only need to DNS-encode/decode, this is more efficient than NameEncoder.
+///      If you are DNS-encoding and calculating the node at the same time, use NameEncoder.
 library ENSDNSUtils {
     error InvalidName();
 

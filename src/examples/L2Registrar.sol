@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import {StringUtils} from "@ensdomains/ens-contracts/utils/StringUtils.sol";
+
 import {IL2Registry} from "../interfaces/IL2Registry.sol";
 
 /// @dev This is an example registrar contract that is mean to be modified.
 contract L2Registrar {
+    using StringUtils for string;
+
     /// @notice Emitted when a new name is registered
     /// @param label The registered label (e.g. "name" in "name.eth")
     /// @param owner The owner of the newly registered name
@@ -65,7 +69,10 @@ contract L2Registrar {
         try registry.ownerOf(tokenId) {
             return false;
         } catch {
-            return true;
+            if (label.strlen() >= 3) {
+                return true;
+            }
+            return false;
         }
     }
 
