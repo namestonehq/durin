@@ -8,11 +8,12 @@ pragma solidity ^0.8.20;
 // ▐▌  ▐▌▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖▗▄▄▞▘  █ ▝▚▄▞▘▐▌  ▐▌▐▙▄▄▖
 // ***********************************************
 
+import "@ensdomains/ens-contracts/resolvers/Multicallable.sol";
 import "@ensdomains/ens-contracts/resolvers/profiles/ABIResolver.sol";
 import "@ensdomains/ens-contracts/resolvers/profiles/AddrResolver.sol";
 import "@ensdomains/ens-contracts/resolvers/profiles/ContentHashResolver.sol";
 import "@ensdomains/ens-contracts/resolvers/profiles/TextResolver.sol";
-import "@ensdomains/ens-contracts/resolvers/Multicallable.sol";
+import "@ensdomains/ens-contracts/resolvers/profiles/ExtendedResolver.sol";
 
 import "./L2Registry.sol";
 
@@ -24,7 +25,8 @@ contract L2Resolver is
     ABIResolver,
     AddrResolver,
     ContentHashResolver,
-    TextResolver
+    TextResolver,
+    ExtendedResolver
 {
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES

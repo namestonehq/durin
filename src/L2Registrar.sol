@@ -12,7 +12,7 @@ pragma solidity ^0.8.20;
 /// @custom:project Durin
 /// @custom:company NameStone
 
-import {IL2Registry} from "./IL2Registry.sol";
+import {IL2Registry} from "./interfaces/IL2Registry.sol";
 
 /// @title Registrar (for Layer 2)
 /// @dev This is a simple registrar contract that is mean to be modified.
