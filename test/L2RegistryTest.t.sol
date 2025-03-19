@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 import "../src/L2Registry.sol";
-import "../src/L2Registrar.sol";
+import "../src/examples/L2Registrar.sol";
 import "../src/L2RegistryFactory.sol";
 
 // contract L2RegistryTest is Test {

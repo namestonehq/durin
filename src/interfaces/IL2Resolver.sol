@@ -1,6 +1,13 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+// ***********************************************
+// ▗▖  ▗▖ ▗▄▖ ▗▖  ▗▖▗▄▄▄▖ ▗▄▄▖▗▄▄▄▖▗▄▖ ▗▖  ▗▖▗▄▄▄▖
+// ▐▛▚▖▐▌▐▌ ▐▌▐▛▚▞▜▌▐▌   ▐▌     █ ▐▌ ▐▌▐▛▚▖▐▌▐▌
+// ▐▌ ▝▜▌▐▛▀▜▌▐▌  ▐▌▐▛▀▀▘ ▝▀▚▖  █ ▐▌ ▐▌▐▌ ▝▜▌▐▛▀▀▘
+// ▐▌  ▐▌▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖▗▄▄▞▘  █ ▝▚▄▞▘▐▌  ▐▌▐▙▄▄▖
+// ***********************************************
+
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IMulticallable} from "@ensdomains/ens-contracts/resolvers/IMulticallable.sol";
 import {IABIResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IABIResolver.sol";
@@ -10,6 +17,7 @@ import {IContentHashResolver} from "@ensdomains/ens-contracts/resolvers/profiles
 import {ITextResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ITextResolver.sol";
 import {IExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IExtendedResolver.sol";
 
+/// @author NameStone
 interface IL2Resolver is
     IERC165,
     IMulticallable,
