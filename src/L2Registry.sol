@@ -10,7 +10,6 @@ pragma solidity ^0.8.20;
 
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {NameEncoder} from "@ensdomains/ens-contracts/utils/NameEncoder.sol";
 
 import {L2Resolver} from "./L2Resolver.sol";
@@ -19,7 +18,7 @@ import {L2Resolver} from "./L2Resolver.sol";
 /// @author NameStone
 /// @notice Manages ENS subname registration and management on L2
 /// @dev Combined Registry, BaseRegistrar and Resolver from the official .eth contracts
-contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
+contract L2Registry is L2Resolver, Initializable, ERC721 {
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
@@ -28,8 +27,7 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     /// @notice Role identifier for registrar operations
     bytes32 public constant REGISTRAR_ROLE = keccak256("REGISTRAR_ROLE");
-    /// @notice The parent ENS node
-    bytes32 public parentNode;
+    bytes32 public baseNode;
 
     string private _tokenName;
     string private _tokenSymbol;
@@ -39,16 +37,12 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
     /// @dev Same mapping as NameWrapper
     mapping(bytes32 node => bytes name) public names;
 
+    /// @notice Mapping of approved registrar controllers
+    mapping(address registrar => bool approved) public registrars;
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-
-    /// @dev Emitted when a highest-level subnode is registered, like "x.name.eth" where "name.eth" is `name()`
-    event NameRegistered(
-        string label,
-        bytes32 indexed node,
-        address indexed owner
-    );
 
     /// @dev Emitted when a subnode is registered at any level
     event NewOwner(
@@ -73,9 +67,17 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
-    modifier onlyOwner(bytes32 node) {
-        if (ownerOf(uint256(node)) != msg.sender) {
+    /// @dev Only the owner of the node or a registrar can call the function
+    modifier onlyOwnerOrRegistrar(bytes32 node) {
+        if (owner(node) != msg.sender && !registrars[msg.sender]) {
             revert Unauthorized(node);
+        }
+        _;
+    }
+
+    modifier onlyOwner() {
+        if (owner() != msg.sender) {
+            revert Unauthorized(baseNode);
         }
         _;
     }
@@ -99,8 +101,9 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
         string calldata baseURI,
         address admin
     ) external initializer {
-        (bytes memory dnsEncodedName, bytes32 _parentNode) = NameEncoder
-            .dnsEncodeName(tokenName);
+        (bytes memory dnsEncodedName, bytes32 node) = NameEncoder.dnsEncodeName(
+            tokenName
+        );
 
         // ERC721
         _tokenName = tokenName;
@@ -108,42 +111,52 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
         _setBaseURI(baseURI);
 
         // Registry
-        parentNode = _parentNode;
-        names[parentNode] = dnsEncodedName;
-
-        // Access control
-        _grantRole(DEFAULT_ADMIN_ROLE, admin);
-        _grantRole(ADMIN_ROLE, admin);
+        baseNode = node;
+        names[baseNode] = dnsEncodedName;
+        _safeMint(admin, uint256(node));
     }
 
     /*//////////////////////////////////////////////////////////////
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Registers a new name
-    /// @dev Only callable by addresses with `REGISTRAR_ROLE`
-    /// @param label The label to register
-    /// @param owner The address that will own the name
-    function register(
-        string calldata label,
-        address owner
-    ) external onlyRole(REGISTRAR_ROLE) {
-        bytes32 subnode = _setSubnodeOwner(parentNode, label, owner);
-        emit NameRegistered(label, subnode, owner);
-    }
-
     /// @notice Creates a node under an existing node (nested subname)
     /// @dev Only callable by the owner of the parent node
     /// @param node The parent node, e.g. `namehash("name.eth")` for "name.eth"
     /// @param label The label of the subnode, e.g. "x" for "x.name.eth"
-    /// @param owner The address that will own the subnode
+    /// @param _owner The address that will own the subnode
+    /// @param data The encoded calldata for resolver setters
     /// @return The resulting subnode, e.g. `namehash("x.name.eth")` for "x.name.eth"
-    function setSubnodeOwner(
+    function createSubnode(
         bytes32 node,
         string calldata label,
-        address owner
-    ) external onlyOwner(node) returns (bytes32) {
-        return _setSubnodeOwner(node, label, owner);
+        address _owner,
+        bytes[] calldata data
+    ) external onlyOwnerOrRegistrar(node) returns (bytes32) {
+        bytes32 labelhash = keccak256(abi.encodePacked(label));
+        bytes32 subnode = makeNode(node, labelhash);
+
+        if (owner(subnode) != address(0)) {
+            revert NotAvailable(label, node);
+        }
+
+        multicall(data);
+        _safeMint(_owner, uint256(subnode));
+        names[subnode] = _addLabel(label, names[node]);
+
+        emit NewOwner(node, labelhash, _owner);
+        return subnode;
+    }
+
+    /// @notice The admin of the registry
+    function owner() public view returns (address) {
+        return owner(baseNode);
+    }
+
+    /// @notice Returns the address that owns the specified node.
+    /// @dev We need this because `ERC721.ownerOf` reverts if the token doesn't exist
+    function owner(bytes32 node) public view returns (address) {
+        return _ownerOf(uint256(node));
     }
 
     /// @notice Helper to derive a node from a parent node and labelhash
@@ -179,48 +192,29 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
     /// @notice Adds a new registrar address
     /// @param registrar The address to grant registrar role to
     /// @dev Only callable by admin role
-    function addRegistrar(address registrar) external onlyRole(ADMIN_ROLE) {
-        _grantRole(REGISTRAR_ROLE, registrar);
+    function addRegistrar(address registrar) external onlyOwner {
+        registrars[registrar] = true;
         emit RegistrarAdded(registrar);
     }
 
     /// @notice Removes a registrar address
     /// @param registrar The address to revoke registrar role from
     /// @dev Only callable by admin role
-    function removeRegistrar(address registrar) external onlyRole(ADMIN_ROLE) {
-        _revokeRole(REGISTRAR_ROLE, registrar);
+    function removeRegistrar(address registrar) external onlyOwner {
+        registrars[registrar] = false;
         emit RegistrarRemoved(registrar);
     }
 
     /// @notice Sets the base URI for token metadata
     /// @param baseURI The new base URI
     /// @dev Only callable by admin role
-    function setBaseURI(string memory baseURI) external onlyRole(ADMIN_ROLE) {
+    function setBaseURI(string memory baseURI) external onlyOwner {
         _setBaseURI(baseURI);
     }
 
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
-    function _setSubnodeOwner(
-        bytes32 node,
-        string calldata label,
-        address owner
-    ) private returns (bytes32) {
-        bytes32 labelhash = keccak256(abi.encodePacked(label));
-        bytes32 subnode = makeNode(node, labelhash);
-
-        // Check if the subnode is already registered
-        if (_ownerOf(uint256(subnode)) != address(0)) {
-            revert NotAvailable(label, node);
-        }
-
-        _safeMint(owner, uint256(subnode));
-        names[subnode] = _addLabel(label, names[node]);
-        emit NewOwner(node, labelhash, owner);
-        return subnode;
-    }
 
     function _setBaseURI(string memory baseURI) private {
         _tokenBaseURI = baseURI;
@@ -246,7 +240,7 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
 
     function supportsInterface(
         bytes4 interfaceId
-    ) public view override(ERC721, AccessControl, L2Resolver) returns (bool) {
+    ) public view override(ERC721, L2Resolver) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 }

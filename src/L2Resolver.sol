@@ -14,7 +14,6 @@ import {AddrResolver} from "@ensdomains/ens-contracts/resolvers/profiles/AddrRes
 import {ContentHashResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ContentHashResolver.sol";
 import {TextResolver} from "@ensdomains/ens-contracts/resolvers/profiles/TextResolver.sol";
 import {ExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ExtendedResolver.sol";
-import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 import {IL2Registry} from "./interfaces/IL2Registry.sol";
 
@@ -36,21 +35,6 @@ contract L2Resolver is
     error Unauthorized(bytes32 node);
 
     /*//////////////////////////////////////////////////////////////
-                               MODIFIERS
-    //////////////////////////////////////////////////////////////*/
-
-    modifier onlyRegistryAdmin() {
-        IL2Registry registry = _registry();
-        if (!registry.hasRole(registry.REGISTRAR_ROLE(), msg.sender)) {
-            revert IAccessControl.AccessControlUnauthorizedAccount(
-                msg.sender,
-                registry.ADMIN_ROLE()
-            );
-        }
-        _;
-    }
-
-    /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -66,7 +50,7 @@ contract L2Resolver is
     function isAuthorised(bytes32 node) internal view override returns (bool) {
         IL2Registry registry = _registry();
 
-        if (registry.hasRole(registry.REGISTRAR_ROLE(), msg.sender)) {
+        if (registry.registrars(msg.sender)) {
             return true;
         }
 

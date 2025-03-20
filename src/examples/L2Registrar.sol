@@ -54,7 +54,12 @@ contract L2Registrar {
         registry.setAddr(node, 60, addr);
 
         // Register the name in the L2 registry
-        registry.register(label, owner);
+        registry.createSubnode(
+            registry.baseNode(),
+            label,
+            owner,
+            new bytes[](0)
+        );
         emit NameRegistered(label, owner);
     }
 
@@ -80,6 +85,6 @@ contract L2Registrar {
         string calldata label
     ) private view returns (bytes32) {
         bytes32 labelhash = keccak256(bytes(label));
-        return keccak256(abi.encodePacked(registry.parentNode(), labelhash));
+        return registry.makeNode(registry.baseNode(), labelhash);
     }
 }
