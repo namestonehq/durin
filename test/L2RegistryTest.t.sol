@@ -44,7 +44,7 @@ contract L2RegistryTest is Test {
         registry.addRegistrar(registrar);
     }
 
-    function testFuzz_RegisterViaRegistry(string calldata label) public {
+    function testFuzz_Register(string calldata label) public {
         vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
 
         vm.startPrank(admin);
@@ -57,9 +57,7 @@ contract L2RegistryTest is Test {
         assertEq(registry.ownerOf(uint256(node)), admin);
     }
 
-    function testFuzz_RegisterViaRegistryTwiceReverts(
-        string calldata label
-    ) public {
+    function testFuzz_RegisterTwiceReverts(string calldata label) public {
         vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
 
         vm.startPrank(admin);
@@ -78,7 +76,7 @@ contract L2RegistryTest is Test {
         vm.stopPrank();
     }
 
-    function testFuzz_RegisterViaRegistryWithUnauthedAddressReverts(
+    function testFuzz_RegisterWithUnauthedAddressReverts(
         string calldata label
     ) public {
         vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
@@ -92,6 +90,36 @@ contract L2RegistryTest is Test {
         );
         vm.prank(user1);
         registry.register(label, user1);
+    }
+
+    function testFuzz_SetSubnodeOwner(
+        string calldata label,
+        string calldata sublabel
+    ) public {
+        vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
+        vm.assume(bytes(sublabel).length > 1 && bytes(sublabel).length < 255);
+
+        // Register a name
+        vm.startPrank(admin);
+        registry.addRegistrar(admin);
+        registry.register(label, admin);
+
+        // Create a subnode
+        bytes32 nameNode = registry.makeNode(
+            registry.parentNode(),
+            keccak256(abi.encodePacked(label))
+        );
+        bytes32 subnode = registry.setSubnodeOwner(nameNode, sublabel, user1);
+        vm.stopPrank();
+
+        assertEq(registry.ownerOf(uint256(subnode)), user1);
+
+        // Then the subnode owner should be able to move the subnode to a new owner
+        vm.startPrank(user1);
+        registry.transferFrom(user1, user2, uint256(subnode));
+        vm.stopPrank();
+
+        assertEq(registry.ownerOf(uint256(subnode)), user2);
     }
 
     function testFuzz_SetSingleRecordsByOwner(string calldata label) public {
