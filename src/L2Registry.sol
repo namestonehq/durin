@@ -44,7 +44,12 @@ contract L2Registry is L2Resolver, Initializable, ERC721 {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Emitted when a subnode is registered at any level
+    /// @notice Emitted when a name is registered at any level
+    /// @dev Not identical to ENS contracts, but added for convenience
+    event NameRegistered(bytes32 indexed node, bytes name, address owner);
+
+    /// @notice Emitted when a subnode is registered at any level
+    /// @dev Same event signature as the ENS Registry
     event NewOwner(
         bytes32 indexed parentNode,
         bytes32 indexed labelhash,
@@ -135,6 +140,7 @@ contract L2Registry is L2Resolver, Initializable, ERC721 {
     ) external onlyOwnerOrRegistrar(node) returns (bytes32) {
         bytes32 labelhash = keccak256(abi.encodePacked(label));
         bytes32 subnode = makeNode(node, labelhash);
+        bytes memory dnsEncodedName = _addLabel(label, names[node]);
 
         if (owner(subnode) != address(0)) {
             revert NotAvailable(label, node);
@@ -142,9 +148,10 @@ contract L2Registry is L2Resolver, Initializable, ERC721 {
 
         multicall(data);
         _safeMint(_owner, uint256(subnode));
-        names[subnode] = _addLabel(label, names[node]);
+        names[subnode] = dnsEncodedName;
 
         emit NewOwner(node, labelhash, _owner);
+        emit NameRegistered(subnode, dnsEncodedName, _owner);
         return subnode;
     }
 

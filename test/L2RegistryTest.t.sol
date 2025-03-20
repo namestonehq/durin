@@ -6,6 +6,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {L2Registry} from "../src/L2Registry.sol";
 import {L2RegistryFactory} from "../src/L2RegistryFactory.sol";
 import {IL2Resolver} from "../src/interfaces/IL2Resolver.sol";
+import {ENSDNSUtils} from "../src/utils/ENSDNSUtils.sol";
 import {MockRegistrar} from "./mocks/MockRegistrar.sol";
 
 contract L2RegistryTest is Test {
@@ -67,10 +68,14 @@ contract L2RegistryTest is Test {
         registry.addRegistrar(address(registrar));
 
         vm.prank(user1);
-        bytes32 node = registrar.register(label, admin);
+        bytes32 node = registrar.register(label, user1);
 
         assertEq(node, expectedNode);
-        assertEq(registry.ownerOf(uint256(node)), admin);
+        assertEq(registry.ownerOf(uint256(node)), user1);
+
+        // Verify that the contract is storing the full DNS-encoded name correctly
+        string memory fullName = string.concat(label, ".", registry.name());
+        assertEq(ENSDNSUtils.dnsDecode(registry.names(node)), fullName);
     }
 
     function testFuzz_RegisterTwiceReverts(string calldata label) public {
