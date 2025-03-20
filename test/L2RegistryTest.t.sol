@@ -44,9 +44,7 @@ contract L2RegistryTest is Test {
         registry.addRegistrar(registrar);
     }
 
-    function testFuzz_RegisterViaRegistryWithAuthedAddress(
-        string calldata label
-    ) public {
+    function testFuzz_RegisterViaRegistry(string calldata label) public {
         vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
 
         vm.startPrank(admin);
@@ -57,6 +55,27 @@ contract L2RegistryTest is Test {
         bytes32 labelhash = keccak256(abi.encodePacked(label));
         bytes32 node = registry.makeNode(registry.parentNode(), labelhash);
         assertEq(registry.ownerOf(uint256(node)), admin);
+    }
+
+    function testFuzz_RegisterViaRegistryTwiceReverts(
+        string calldata label
+    ) public {
+        vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
+
+        vm.startPrank(admin);
+        registry.addRegistrar(admin);
+        registry.register(label, admin);
+
+        // Attempt to register the same label again
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                L2Registry.NotAvailable.selector,
+                label,
+                registry.parentNode()
+            )
+        );
+        registry.register(label, admin);
+        vm.stopPrank();
     }
 
     function testFuzz_RegisterViaRegistryWithUnauthedAddressReverts(

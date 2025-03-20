@@ -67,6 +67,7 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
 
     error LabelTooShort();
     error LabelTooLong(string label);
+    error NotAvailable(string label, bytes32 parentNode);
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -210,7 +211,11 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
         bytes32 labelhash = keccak256(abi.encodePacked(label));
         bytes32 subnode = makeNode(node, labelhash);
 
-        // This will revert if the node is already registered
+        // Check if the subnode is already registered
+        if (_ownerOf(uint256(subnode)) != address(0)) {
+            revert NotAvailable(label, node);
+        }
+
         _safeMint(owner, uint256(subnode));
         names[subnode] = _addLabel(label, names[node]);
         emit NewOwner(node, labelhash, owner);
