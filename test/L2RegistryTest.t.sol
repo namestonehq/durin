@@ -57,7 +57,6 @@ contract L2RegistryTest is Test {
         bytes32 labelhash = keccak256(abi.encodePacked(label));
         bytes32 node = registry.makeNode(registry.parentNode(), labelhash);
         assertEq(registry.ownerOf(uint256(node)), admin);
-        assertEq(registry.totalSupply(), 1);
     }
 
     function testFuzz_RegisterViaRegistryWithUnauthedAddressReverts(

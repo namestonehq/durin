@@ -28,8 +28,6 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     /// @notice Role identifier for registrar operations
     bytes32 public constant REGISTRAR_ROLE = keccak256("REGISTRAR_ROLE");
-    /// @notice Total number of registered names
-    uint256 public totalSupply;
     /// @notice The parent ENS node
     bytes32 public parentNode;
 
@@ -45,8 +43,23 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Emitted when a new name is registered
-    event Registered(string name, address owner);
+    /// @dev Emitted when a highest-level subnode is registered, like "x.name.eth" where "name.eth" is `name()`
+    event NameRegistered(
+        string label,
+        bytes32 indexed node,
+        address indexed owner
+    );
+
+    /// @dev Emitted when a subnode is registered at any level
+    event NewOwner(
+        bytes32 indexed parentNode,
+        bytes32 indexed labelhash,
+        address owner
+    );
+
+    event RegistrarAdded(address registrar);
+    event RegistrarRemoved(address registrar);
+    event BaseURIUpdated(string baseURI);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -54,6 +67,17 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
 
     error LabelTooShort();
     error LabelTooLong(string label);
+
+    /*//////////////////////////////////////////////////////////////
+                               MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
+    modifier onlyOwner(bytes32 node) {
+        if (ownerOf(uint256(node)) != msg.sender) {
+            revert Unauthorized(node);
+        }
+        _;
+    }
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -80,7 +104,7 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
         // ERC721
         _tokenName = tokenName;
         _tokenSymbol = tokenSymbol;
-        _tokenBaseURI = baseURI;
+        _setBaseURI(baseURI);
 
         // Registry
         parentNode = _parentNode;
@@ -103,15 +127,16 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
         string calldata label,
         address owner
     ) external onlyRole(REGISTRAR_ROLE) {
-        bytes32 labelhash = keccak256(abi.encodePacked(label));
-        bytes32 node = makeNode(parentNode, labelhash);
+        bytes32 subnode = _setSubnodeOwner(parentNode, label, owner);
+        emit NameRegistered(label, subnode, owner);
+    }
 
-        // This will revert if the node is already registered
-        _safeMint(owner, uint256(node));
-
-        totalSupply++;
-        names[node] = _addLabel(label, names[parentNode]);
-        emit Registered(label, owner);
+    function setSubnodeOwner(
+        bytes32 node,
+        string calldata label,
+        address owner
+    ) external onlyOwner(node) returns (bytes32) {
+        return _setSubnodeOwner(node, label, owner);
     }
 
     /// @notice Helper to derive a node from a parent node and labelhash
@@ -146,6 +171,7 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
     /// @dev Only callable by admin role
     function addRegistrar(address registrar) external onlyRole(ADMIN_ROLE) {
         _grantRole(REGISTRAR_ROLE, registrar);
+        emit RegistrarAdded(registrar);
     }
 
     /// @notice Removes a registrar address
@@ -153,23 +179,44 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
     /// @dev Only callable by admin role
     function removeRegistrar(address registrar) external onlyRole(ADMIN_ROLE) {
         _revokeRole(REGISTRAR_ROLE, registrar);
+        emit RegistrarRemoved(registrar);
     }
 
     /// @notice Sets the base URI for token metadata
     /// @param baseURI The new base URI
     /// @dev Only callable by admin role
     function setBaseURI(string memory baseURI) external onlyRole(ADMIN_ROLE) {
-        _tokenBaseURI = baseURI;
+        _setBaseURI(baseURI);
     }
 
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    function _setSubnodeOwner(
+        bytes32 node,
+        string calldata label,
+        address owner
+    ) private returns (bytes32) {
+        bytes32 labelhash = keccak256(abi.encodePacked(label));
+        bytes32 subnode = makeNode(node, labelhash);
+
+        // This will revert if the node is already registered
+        _safeMint(owner, uint256(subnode));
+        names[subnode] = _addLabel(label, names[node]);
+        emit NewOwner(node, labelhash, owner);
+        return subnode;
+    }
+
+    function _setBaseURI(string memory baseURI) private {
+        _tokenBaseURI = baseURI;
+        emit BaseURIUpdated(baseURI);
+    }
+
     function _addLabel(
         string memory label,
         bytes memory _name
-    ) internal pure returns (bytes memory ret) {
+    ) private pure returns (bytes memory ret) {
         if (bytes(label).length < 1) {
             revert LabelTooShort();
         }
