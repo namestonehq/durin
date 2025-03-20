@@ -131,6 +131,12 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
         emit NameRegistered(label, subnode, owner);
     }
 
+    /// @notice Creates a node under an existing node (nested subname)
+    /// @dev Only callable by the owner of the parent node
+    /// @param node The parent node, e.g. `namehash("name.eth")` for "name.eth"
+    /// @param label The label of the subnode, e.g. "x" for "x.name.eth"
+    /// @param owner The address that will own the subnode
+    /// @return The resulting subnode, e.g. `namehash("x.name.eth")` for "x.name.eth"
     function setSubnodeOwner(
         bytes32 node,
         string calldata label,
@@ -140,11 +146,14 @@ contract L2Registry is L2Resolver, Initializable, ERC721, AccessControl {
     }
 
     /// @notice Helper to derive a node from a parent node and labelhash
+    /// @param node The parent node, e.g. `namehash("name.eth")` for "name.eth"
+    /// @param labelhash The labelhash of the subnode, e.g. `keccak256("x")` for "x.name.eth"
+    /// @return The resulting subnode, e.g. `namehash("x.name.eth")` for "x.name.eth"
     function makeNode(
-        bytes32 _parentNode,
-        bytes32 _labelhash
+        bytes32 node,
+        bytes32 labelhash
     ) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(_parentNode, _labelhash));
+        return keccak256(abi.encodePacked(node, labelhash));
     }
 
     /// @notice The NFT collection name.
