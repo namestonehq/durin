@@ -23,10 +23,6 @@ contract L2Registry is L2Resolver, Initializable, ERC721 {
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Role identifier for administrative operations
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    /// @notice Role identifier for registrar operations
-    bytes32 public constant REGISTRAR_ROLE = keccak256("REGISTRAR_ROLE");
     bytes32 public baseNode;
 
     string private _tokenName;
