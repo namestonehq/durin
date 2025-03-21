@@ -276,7 +276,7 @@ contract L2RegistryTest is Test {
     }
 
     function test_ImplementationAddressNotNull() public view {
-        address implAddr = factory.implementation();
+        address implAddr = factory.registryImplementation();
         assertTrue(implAddr != address(0));
     }
 }

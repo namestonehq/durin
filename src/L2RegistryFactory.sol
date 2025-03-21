@@ -21,7 +21,7 @@ contract L2RegistryFactory {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice The implementation contract to clone
-    address public immutable implementation;
+    address public immutable registryImplementation;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -38,7 +38,7 @@ contract L2RegistryFactory {
     //////////////////////////////////////////////////////////////*/
 
     constructor() {
-        implementation = address(new L2Registry());
+        registryImplementation = address(new L2Registry());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -64,7 +64,7 @@ contract L2RegistryFactory {
         string memory baseURI,
         address admin
     ) public returns (address) {
-        address registry = Clones.clone(implementation);
+        address registry = Clones.clone(registryImplementation);
         L2Registry(registry).initialize(name, symbol, baseURI, admin);
 
         emit RegistryDeployed(name, admin, registry);
