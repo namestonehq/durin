@@ -125,36 +125,86 @@ contract L2RegistryTest is Test {
         vm.prank(admin);
         registry.addRegistrar(address(registrar));
 
-        // Register a name
+        // Register a name (3LD)
         vm.startPrank(user1);
-        bytes32 nameNode = registrar.register(label, user1);
+        bytes32 nodeFor3ld = registrar.register(label, user1);
+        assertEq(registry.ownerOf(uint256(nodeFor3ld)), user1);
 
+        bytes32 expectedNodeFor4ld = registry.makeNode(
+            nodeFor3ld,
+            keccak256(abi.encodePacked(sublabel))
+        );
+
+        // Create calldata for resolver for the soon-to-be-created 4LD
         bytes[] memory data = new bytes[](2);
         // setAddr(bytes32, address) = 0xd5fa2b00
-        data[0] = abi.encodeWithSelector(bytes4(0xd5fa2b00), nameNode, user1);
+        data[0] = abi.encodeWithSelector(
+            bytes4(0xd5fa2b00),
+            expectedNodeFor4ld,
+            user1
+        );
         data[1] = abi.encodeWithSelector(
             IL2Resolver.setText.selector,
-            nameNode,
+            expectedNodeFor4ld,
             "key",
             "value"
         );
 
-        bytes32 subnode = registry.createSubnode(
-            nameNode,
+        bytes32 actualNodeFor4ld = registry.createSubnode(
+            nodeFor3ld,
             sublabel,
             user1,
             data
         );
-
-        assertEq(registry.owner(subnode), user1);
+        assertEq(expectedNodeFor4ld, actualNodeFor4ld);
+        assertEq(registry.owner(actualNodeFor4ld), user1);
 
         // Then the subnode owner should be able to move the subnode to a new owner
-        registry.transferFrom(user1, user2, uint256(subnode));
+        registry.transferFrom(user1, user2, uint256(actualNodeFor4ld));
         vm.stopPrank();
-        assertEq(registry.ownerOf(uint256(subnode)), user2);
+        assertEq(registry.owner(actualNodeFor4ld), user2);
     }
 
-    function testFuzz_CreteSubnodeFromUnapprovedNodeReverts(
+    function testFuzz_CreateSubnodeWithDataForUnownedNodeReverts(
+        string calldata label,
+        string calldata sublabel
+    ) public {
+        vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
+        vm.assume(bytes(sublabel).length > 1 && bytes(sublabel).length < 255);
+
+        // Add registrar
+        vm.prank(admin);
+        registry.addRegistrar(address(registrar));
+
+        // Register a name (3LD)
+        vm.startPrank(user1);
+        bytes32 nodeFor3ld = registrar.register(label, user1);
+
+        bytes32 expectedNodeFor4ld = registry.makeNode(
+            nodeFor3ld,
+            keccak256(abi.encodePacked(sublabel))
+        );
+
+        // Create calldata for resolver for the soon-to-be-created 4LD
+        bytes[] memory data = new bytes[](2);
+        // setAddr(bytes32, address) = 0xd5fa2b00
+        data[0] = abi.encodeWithSelector(bytes4(0xd5fa2b00), nodeFor3ld, user1);
+        data[1] = abi.encodeWithSelector(
+            IL2Resolver.setText.selector,
+            nodeFor3ld,
+            "key",
+            "value"
+        );
+
+        // This throws from Multicallable which has `require` instead of custom error
+        vm.expectRevert(
+            bytes("multicall: All records must have a matching namehash")
+        );
+        registry.createSubnode(nodeFor3ld, sublabel, user1, data);
+        vm.stopPrank();
+    }
+
+    function testFuzz_CreateSubnodeFromUnapprovedNodeReverts(
         string calldata label,
         string calldata sublabel
     ) public {

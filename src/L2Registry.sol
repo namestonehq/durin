@@ -146,8 +146,8 @@ contract L2Registry is L2Resolver, Initializable, ERC721 {
             revert NotAvailable(label, node);
         }
 
-        multicall(data);
         _safeMint(_owner, uint256(subnode));
+        _multicall(subnode, data);
         names[subnode] = dnsEncodedName;
 
         emit NewOwner(node, labelhash, _owner);
