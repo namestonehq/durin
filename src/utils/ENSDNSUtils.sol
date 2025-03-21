@@ -2,8 +2,6 @@
 pragma solidity ^0.8.20;
 
 /// @author raffy.eth
-/// @dev If you only need to DNS-encode/decode, this is more efficient than NameEncoder.
-///      If you are DNS-encoding and calculating the node at the same time, use NameEncoder.
 library ENSDNSUtils {
     error InvalidName();
 
@@ -60,53 +58,6 @@ library ENSDNSUtils {
             assembly {
                 mstore(ens, n)
             } // fix mangled length
-        }
-    }
-
-    function dnsEncode(
-        string memory ens
-    ) internal pure returns (bytes memory dns) {
-        unchecked {
-            uint256 n;
-            assembly {
-                n := mload(ens)
-            }
-            if (n == 0) return hex"00"; // root
-            dns = new bytes(n + 2); // always 2-longer
-            uint256 w;
-            uint256 e;
-            uint256 r;
-            assembly {
-                e := add(dns, 32)
-                r := e // remember start
-                ens := add(ens, 32)
-                for {
-                    let i := 0
-                } lt(i, n) {
-                    i := add(i, 1)
-                } {
-                    let b := shr(248, mload(add(ens, i))) // read byte
-                    if eq(b, 46) {
-                        // found "."
-                        w := sub(e, r)
-                        if or(iszero(w), gt(w, 255)) {
-                            break
-                        } // something wrong
-                        mstore8(r, w)
-                        r := add(e, 1) // update start
-                    }
-                    {
-                        e := add(e, 1)
-                        mstore8(e, b)
-                    }
-                }
-            }
-            w = e - r;
-            if (w == 0) revert InvalidName(); // empty label
-            if (w > 255) return ""; // label too long
-            assembly {
-                mstore8(r, w)
-            } // store final length
         }
     }
 }
