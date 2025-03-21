@@ -116,3 +116,6 @@ This repo includes the L2 contracts required to enable subname issuance.
 ## Architecture
 
 ![architecture](https://github.com/user-attachments/assets/06065784-0516-498e-a512-d7b63892599a)
+
+> [!NOTE]  
+> A dependency for supporting new chains is a deployment of UniversalSigValidator to `0x164af34fAF9879394370C7f09064127C043A35E9`. The deployment is permissionless and can be found [here](https://github.com/ensdomains/ens-contracts/blob/8c414e4c41dce49c49efd0bf82c10a145cdc8f0a/deploy/utils/00_deploy_universal_sig_validator.ts).
