@@ -46,7 +46,7 @@ git clone git@github.com:resolverworks/durin.git
 cd durin
 ```
 
-Once cloned modify [L2Registrar.sol](https://github.com/resolverworks/durin/blob/main/src/L2Registrar.sol) as need it.
+Once cloned modify [L2Registrar.sol](https://github.com/resolverworks/durin/blob/main/src/examples/L2Registrar.sol) as need it.
 
 Durin uses [foundry](https://github.com/foundry-rs/foundry), to install follow the [instructions](https://book.getfoundry.sh/getting-started/installation).
 
@@ -96,7 +96,7 @@ This repo includes the L2 contracts required to enable subname issuance.
 - [L2RegistryFactory](./src/L2RegistryFactory.sol): L2 contract for creating new registries.
 - [L2Registry](./src/L2Registry.sol): L2 contract that stores subnames as ERC721 NFTs.
   It's responsible for storing subname data like address and text records.
-- [L2Registrar](./src/L2Registrar.sol): An example registrar contract that can mint subnames. This is meant to be customized.
+- [L2Registrar](./src/examples/L2Registrar.sol): An example registrar contract that can mint subnames. This is meant to be customized.
 
 ## Active Registry Factory Deployments
 
