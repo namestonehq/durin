@@ -8,7 +8,13 @@ import "src/L2RegistryFactory.sol";
 
 contract DeployFactory is Script {
     // Use a fixed salt for consistent addresses across chains
-    bytes32 salt = vm.envBytes32("SALT");
+    string saltString = vm.envString("SALT");
+    bytes32 salt = keccak256(abi.encodePacked(saltString));
+
+    // Get private key and add 0x prefix if missing
+    string rawKey = vm.envString("PRIVATE_KEY");
+    bytes privateKeyBytes = vm.parseBytes(rawKey);
+    uint256 deployerPrivateKey = uint256(bytes32(privateKeyBytes));
 
     function setUp() public {}
 
@@ -30,9 +36,9 @@ contract DeployFactory is Script {
                 break;
             }
 
-            console.log("Deploying to", network);
+            console.log("Deploying to", networks[i]);
             vm.createSelectFork(networks[i]);
-            vm.startBroadcast();
+            vm.startBroadcast(deployerPrivateKey);
             L2RegistryFactory factory = new L2RegistryFactory{salt: salt}();
             console.log("Factory deployed to", address(factory));
             vm.stopBroadcast();
