@@ -11,11 +11,6 @@ contract DeployFactory is Script {
     string saltString = vm.envString("SALT");
     bytes32 salt = keccak256(abi.encodePacked(saltString));
 
-    // Get private key and add 0x prefix if missing
-    string rawKey = vm.envString("PRIVATE_KEY");
-    bytes privateKeyBytes = vm.parseBytes(rawKey);
-    uint256 deployerPrivateKey = uint256(bytes32(privateKeyBytes));
-
     function setUp() public {}
 
     function run() public {

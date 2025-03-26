@@ -60,9 +60,6 @@ cp example.env .env
 # Required: RPC URL for the chain where the registry is deployed
 RPC_URL=
 
-# Required: Private key of the deployer exclude "0x" (Same as used on durin.dev)
-PRIVATE_KEY=
-
 # Required: Etherscan API key for contract verification
 ETHERSCAN_API_KEY=
 
@@ -78,6 +75,8 @@ REGISTRAR_ADDRESS=Blank until step 5
 ```shell
 bash deploy/deployL2Registrar.sh
 ```
+
+Required: Private key of the deployer exclude "0x" (Same as used on durin.dev)
 
 **Update Registrar address in .env**
 

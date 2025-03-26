@@ -52,6 +52,8 @@ contract L2Registrar {
 
         // Set the forward address for mainnet ETH (coinType 60) for easier debugging.
         registry.setAddr(node, 60, addr);
+        // Set the forward address for Sepolia ETH (coinType 11155111) for easier debugging.
+        registry.setAddr(node, 11155111, addr);
 
         // Register the name in the L2 registry
         registry.createSubnode(

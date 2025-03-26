@@ -4,7 +4,7 @@
 source .env
 
 # Check if required variables are set
-if [ -z "$RPC_URL" ] || [ -z "$PRIVATE_KEY" ] || [ -z "$REGISTRY_ADDRESS" ] || \
+if [ -z "$RPC_URL" ] ||  [ -z "$REGISTRY_ADDRESS" ] || \
    [ -z "$REGISTRAR_ADDRESS" ]; then
     echo "Error: Missing required environment variables. Please check your .env file."
     exit 1
@@ -16,6 +16,6 @@ cast send $REGISTRY_ADDRESS \
     "addRegistrar(address)" \
     "$REGISTRAR_ADDRESS" \
     --rpc-url $RPC_URL \
-    --private-key $PRIVATE_KEY
+    --interactive 1
 
 echo "All parameters set successfully!"
