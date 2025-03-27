@@ -17,12 +17,14 @@ import {L2Resolver} from "./L2Resolver.sol";
 /// @title Durin Registry
 /// @author NameStone
 /// @notice Manages ENS subname registration and management on L2
-/// @dev Combined Registry, BaseRegistrar and Resolver from the official .eth contracts
+/// @dev Combined Registry, BaseRegistrar and PublicResolver from the official .eth contracts
 contract L2Registry is L2Resolver, Initializable, ERC721 {
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice The base node for the registry
+    /// @dev namehash of `name()`
     bytes32 public baseNode;
 
     string private _tokenName;
@@ -30,7 +32,6 @@ contract L2Registry is L2Resolver, Initializable, ERC721 {
     string private _tokenBaseURI;
 
     /// @notice Mapping of node (namehash) to name (DNS-encoded)
-    /// @dev Same mapping as NameWrapper
     mapping(bytes32 node => bytes name) public names;
 
     /// @notice Mapping of approved registrar controllers
@@ -40,9 +41,8 @@ contract L2Registry is L2Resolver, Initializable, ERC721 {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Emitted when a name is registered at any level
-    /// @dev Not identical to ENS contracts, but added for convenience
-    event NameRegistered(bytes32 indexed node, bytes name, address owner);
+    /// @notice Emitted when a name is created at any level
+    event SubnodeCreated(bytes32 indexed node, bytes name, address owner);
 
     /// @notice Emitted when a subnode is registered at any level
     /// @dev Same event signature as the ENS Registry
@@ -121,7 +121,7 @@ contract L2Registry is L2Resolver, Initializable, ERC721 {
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Creates a node under an existing node (nested subname)
+    /// @notice Creates a subnode from a parent node and label
     /// @dev Only callable by the owner of the parent node
     /// @param node The parent node, e.g. `namehash("name.eth")` for "name.eth"
     /// @param label The label of the subnode, e.g. "x" for "x.name.eth"
@@ -147,7 +147,7 @@ contract L2Registry is L2Resolver, Initializable, ERC721 {
         names[subnode] = dnsEncodedName;
 
         emit NewOwner(node, labelhash, _owner);
-        emit NameRegistered(subnode, dnsEncodedName, _owner);
+        emit SubnodeCreated(subnode, dnsEncodedName, _owner);
         return subnode;
     }
 
@@ -156,8 +156,8 @@ contract L2Registry is L2Resolver, Initializable, ERC721 {
         return owner(baseNode);
     }
 
-    /// @notice Returns the address that owns the specified node.
-    /// @dev We need this because `ERC721.ownerOf` reverts if the token doesn't exist
+    /// @notice Returns the address that owns the specified node
+    /// @dev We need this because `ERC721.ownerOf()` reverts if the token doesn't exist
     function owner(bytes32 node) public view returns (address) {
         return _ownerOf(uint256(node));
     }
@@ -173,17 +173,17 @@ contract L2Registry is L2Resolver, Initializable, ERC721 {
         return keccak256(abi.encodePacked(node, labelhash));
     }
 
-    /// @notice The NFT collection name.
+    /// @notice The name of the NFT collection and base ENS name.
     function name() public view override returns (string memory) {
         return _tokenName;
     }
 
-    /// @notice The NFT collection symbol.
+    /// @notice The symbol of the NFT collection
     function symbol() public view override returns (string memory) {
         return _tokenSymbol;
     }
 
-    /// @notice The base URI for NFT metadata.
+    /// @notice The base URI for NFT metadata
     function _baseURI() internal view virtual override returns (string memory) {
         return _tokenBaseURI;
     }

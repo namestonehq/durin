@@ -118,3 +118,13 @@ This repo includes the L2 contracts required to enable subname issuance.
 
 > [!NOTE]  
 > A dependency for supporting new chains is a deployment of UniversalSigValidator to `0x164af34fAF9879394370C7f09064127C043A35E9`. The deployment is permissionless and can be found [here](https://github.com/ensdomains/ens-contracts/blob/8c414e4c41dce49c49efd0bf82c10a145cdc8f0a/deploy/utils/00_deploy_universal_sig_validator.ts).
+
+## Deploying Durin
+
+1. In [DeployL2RegistryImplementation.s.sol](./scripts/DeployL2RegistryImplementation.s.sol), make sure the chains you want to deploy to are uncommented.
+2. Run `./deploy/DeployL2RegistryImplementation.sh` to deploy the registry implementation to the specified chains.
+3. Create a `.env` file via `cp example.env .env` and set `L2_REGISTRY_IMPLEMENTATION_ADDRESS` to the address of the deployed registry implementation.
+4. (Optional) Run `forge script ./scripts/L2RegistryFactoryInitCode.s.sol` to get the init code hash of the registry factory, which you can use to mine a salt for the CREATE2 deployment using an external tool. Come back and update `L2_REGISTRY_FACTORY_SALT` in `.env` with the mined salt.
+5. In [DeployL2RegistryFactory.s.sol](./scripts/DeployL2RegistryFactory.s.sol), make sure the chains you want to deploy to are uncommented.
+6. Run `./deploy/DeployL2RegistryFactory.sh` to deploy the registry factory to the specified chains.
+7. Run `./deploy/VerifyL2RegistryImplementation.sh` and `./deploy/VerifyL2RegistryFactory.sh` a bunch of times to verify all the contracts you just deployed. Unfortunately forge's verification is flaky for multi-chain deployments.

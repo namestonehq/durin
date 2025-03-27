@@ -8,6 +8,7 @@ solc_version = "0.8.20"
 evm_version = "london"
 optimizer = true
 optimizer_runs = 200
+create2_deployer = "0x4e59b44847b379578588920cA78FbF26c0B4956C"
 
 [fmt]
 bracket_spacing = true
@@ -39,16 +40,16 @@ linea-sepolia = "https://linea-sepolia-rpc.publicnode.com"
 # https://docs.etherscan.io/contract-verification/supported-chains
 # mainnet = { key = "${ETHERSCAN_API_KEY}" }
 # sepolia = { key = "${ETHERSCAN_API_KEY}" }
-base = { key = "${BASE_API_KEY}" }
-base-sepolia = { key = "${BASE_SEPOLIA_API_KEY}" }
-arbitrum = { key = "${ARBITRUM_API_KEY}" }
-arbitrum-sepolia = { key = "${ARBITRUM_SEPOLIA_API_KEY}" }
-optimism = { key = "${OPTIMISM_API_KEY}" }
-optimism-sepolia = { key = "${OPTIMISM_SEPOLIA_API_KEY}" }
-scroll = { key = "${SCROLL_API_KEY}" }
-scroll-sepolia = { key = "${SCROLL_SEPOLIA_API_KEY}" }
-linea = { key = "${LINEA_API_KEY}" }
-linea-sepolia = { key = "${LINEA_SEPOLIA_API_KEY}" }
+base = { key = "${BASESCAN_API_KEY}", chain = 8453 }
+base-sepolia = { key = "${BASESCAN_API_KEY}", chain = 84532 }
+arbitrum = { key = "${ARBISCAN_API_KEY}", chain = 42161 }
+arbitrum-sepolia = { key = "${ARBISCAN_API_KEY}", chain = 421614 }
+optimism = { key = "${OPTIMISTIC_ETHERSCAN_API_KEY}", chain = 10 }
+optimism-sepolia = { key = "${OPTIMISTIC_ETHERSCAN_API_KEY}", chain = 11155420 }
+scroll = { key = "${SCROLLSCAN_API_KEY}", chain = 534352 }
+scroll-sepolia = { key = "${SCROLLSCAN_API_KEY}", chain = 534351 }
+linea = { key = "${LINEASCAN_API_KEY}", chain = 59144 }
+linea-sepolia = { key = "${LINEASCAN_API_KEY}", chain = 59141 }
 
 [fuzz]
 # The amount of fuzz runs to perform for each fuzz test case. 

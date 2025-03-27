@@ -10,7 +10,7 @@ pragma solidity ^0.8.20;
 
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 
-import {L2Registry} from "./L2Registry.sol";
+import {IL2Registry} from "./interfaces/IL2Registry.sol";
 
 /// @title Durin Factory
 /// @author NameStone
@@ -37,8 +37,8 @@ contract L2RegistryFactory {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor() {
-        registryImplementation = address(new L2Registry());
+    constructor(address _registryImplementation) {
+        registryImplementation = _registryImplementation;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -46,14 +46,14 @@ contract L2RegistryFactory {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Deploys a new L2Registry contract with default parameters
-    /// @param name The parent ENS name for the registry
+    /// @param name The parent ENS name for the registry, e.g. "example.eth"
     /// @return address The address of the newly deployed registry clone
     function deployRegistry(string calldata name) external returns (address) {
         return deployRegistry(name, "", "", msg.sender);
     }
 
     /// @notice Deploys a new L2Registry contract with specified parameters
-    /// @param name The parent ENS name for the registry
+    /// @param name The parent ENS name for the registry, e.g. "example.eth"
     /// @param symbol The symbol for the registry's ERC721 token
     /// @param baseURI The URI for the NFT's metadata
     /// @param admin The address to grant admin roles to
@@ -65,7 +65,7 @@ contract L2RegistryFactory {
         address admin
     ) public returns (address) {
         address registry = Clones.clone(registryImplementation);
-        L2Registry(registry).initialize(name, symbol, baseURI, admin);
+        IL2Registry(registry).initialize(name, symbol, baseURI, admin);
 
         emit RegistryDeployed(name, admin, registry);
         return registry;

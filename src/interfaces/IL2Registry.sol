@@ -20,6 +20,12 @@ interface IL2Registry is IL2Resolver, IERC721 {
     function registrars(address registrar) external view returns (bool);
 
     // Public functions
+    function initialize(
+        string calldata tokenName,
+        string calldata tokenSymbol,
+        string calldata baseURI,
+        address admin
+    ) external;
     function createSubnode(
         bytes32 node,
         string calldata label,

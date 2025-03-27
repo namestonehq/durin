@@ -16,12 +16,12 @@ import {TextResolver} from "@ensdomains/ens-contracts/resolvers/profiles/TextRes
 import {ExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ExtendedResolver.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
-import {IL2Registry} from "./interfaces/IL2Registry.sol";
+import {L2Registry} from "./L2Registry.sol";
 import {IUniversalSignatureValidator} from "./interfaces/IUniversalSignatureValidator.sol";
 
 /// @author NameStone
-/// @notice Basic resolver to store standard ENS records
-/// @dev This contract is inherited by L2Registry, making the registry available via `address(this)`
+/// @notice Resolver to store standard ENS records
+/// @dev This contract is inherited by L2Registry, making registry methods available via `address(this)`
 contract L2Resolver is
     Multicallable,
     ABIResolver,
@@ -36,6 +36,7 @@ contract L2Resolver is
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev ERC-6492: Signature Validation for Predeploy Contracts
     IUniversalSignatureValidator private immutable universalSignatureValidator =
         IUniversalSignatureValidator(
             0x164af34fAF9879394370C7f09064127C043A35E9
@@ -104,6 +105,7 @@ contract L2Resolver is
             revert Unauthorized(node);
         }
 
+        // Manually update storage since `setText()` on the inherited contract cannot be called internally
         versionable_texts[recordVersions[node]][node][key] = value;
         emit TextChanged(node, key, key, value);
     }
@@ -126,6 +128,7 @@ contract L2Resolver is
             revert Unauthorized(node);
         }
 
+        // Manually update storage since `setContenthash()` on the inherited contract cannot be called internally
         versionable_hashes[recordVersions[node]][node] = hash;
         emit ContenthashChanged(node, hash);
     }
@@ -141,6 +144,7 @@ contract L2Resolver is
         bytes32 sigHash = keccak256(
             abi.encodePacked(address(this), node, contentType, data, expiration)
         ).toEthSignedMessageHash();
+
         if (
             !isAuthorisedForAddress(signer, node) ||
             !universalSignatureValidator.isValidSig(signer, sigHash, signature)
@@ -151,6 +155,7 @@ contract L2Resolver is
         // Content types must be powers of 2
         require(((contentType - 1) & contentType) == 0);
 
+        // Manually update storage since `setABI()` on the inherited contract cannot be called internally
         versionable_abis[recordVersions[node]][node][contentType] = data;
         emit ABIChanged(node, contentType);
     }
@@ -159,15 +164,15 @@ contract L2Resolver is
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _registry() internal view returns (IL2Registry) {
-        return IL2Registry(address(this));
+    function _registry() internal view returns (L2Registry) {
+        return L2Registry(address(this));
     }
 
     function isAuthorisedForAddress(
         address addr,
         bytes32 node
     ) internal view returns (bool) {
-        IL2Registry registry = _registry();
+        L2Registry registry = _registry();
 
         if (registry.registrars(addr)) {
             return true;
@@ -187,7 +192,7 @@ contract L2Resolver is
                            REQUIRED OVERRIDES
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Reverts instead of returning false so the modifier that uses this function has better error messages.
+    /// @dev Reverts instead of returning false so the modifier that uses this function has better error messages
     function isAuthorised(bytes32 node) internal view override returns (bool) {
         return isAuthorisedForAddress(msg.sender, node);
     }
