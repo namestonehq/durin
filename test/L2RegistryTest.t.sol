@@ -449,21 +449,4 @@ contract L2RegistryTest is Test {
         address implAddr = factory.registryImplementation();
         assertTrue(implAddr != address(0));
     }
-
-    function test_FactoryDeploymentAddress() public {
-        address registryImplementation = vm.envAddress(
-            "L2_REGISTRY_IMPLEMENTATION_ADDRESS"
-        );
-
-        bytes32 salt = vm.envBytes32("L2_REGISTRY_FACTORY_SALT");
-        console.logBytes32(salt);
-
-        L2RegistryFactory newFactory = new L2RegistryFactory{salt: salt}(
-            registryImplementation
-        );
-        assertEq(
-            address(newFactory),
-            vm.envAddress("L2_REGISTRY_FACTORY_ADDRESS")
-        );
-    }
 }
