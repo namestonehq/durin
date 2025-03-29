@@ -124,7 +124,19 @@ This repo includes the L2 contracts required to enable subname issuance.
 1. In [DeployL2RegistryImplementation.s.sol](./scripts/DeployL2RegistryImplementation.s.sol), make sure the chains you want to deploy to are uncommented.
 2. Run `./deploy/DeployL2RegistryImplementation.sh` to deploy the registry implementation to the specified chains.
 3. Create a `.env` file via `cp example.env .env` and set `L2_REGISTRY_IMPLEMENTATION_ADDRESS` to the address of the deployed registry implementation.
-4. (Optional) Run `forge script ./scripts/L2RegistryFactoryInitCode.s.sol` to get the init code hash of the registry factory, which you can use to mine a salt for the CREATE2 deployment using an external tool. Come back and update `L2_REGISTRY_FACTORY_SALT` in `.env` with the mined salt.
+4. (Optional) See [CREATE2 Tips](#create2-tips) for mining a vanity address.
 5. In [DeployL2RegistryFactory.s.sol](./scripts/DeployL2RegistryFactory.s.sol), make sure the chains you want to deploy to are uncommented.
 6. Run `./deploy/DeployL2RegistryFactory.sh` to deploy the registry factory to the specified chains.
 7. Run `./deploy/VerifyL2RegistryImplementation.sh` and `./deploy/VerifyL2RegistryFactory.sh` a bunch of times to verify all the contracts you just deployed. Unfortunately forge's verification is flaky for multi-chain deployments.
+
+### CREATE2 Tips
+
+For generating a CREATE2 salt to deploy the registry factory, run the command below. Use [./scripts/L2RegistryFactoryInitCode.s.sol](./scripts/L2RegistryFactoryInitCode.s.sol) to calculate the init code hash, and [pcaversaccio/create2deployer](https://github.com/pcaversaccio/create2deployer) to deploy the contract.
+
+```bash
+export FACTORY="0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF2"
+export INIT_CODE_HASH="<HASH_OF_YOUR_CONTRACT_INIT_CODE_GOES_HERE>"
+cast create2 --starts-with dddddd --deployer $FACTORY --init-code-hash $INIT_CODE_HASH
+```
+
+Once you have a salt that you're happy with, update `L2_REGISTRY_FACTORY_SALT` in `.env` so it's used in the deployment script.
