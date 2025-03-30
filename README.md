@@ -101,23 +101,23 @@ This repo includes the L2 contracts required to enable subname issuance.
 
 | L2               | Registry Factory                                                                                                                         |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Base             | [`0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb`](https://basescan.org/address/0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb)                  |
-| Base Sepolia     | [`0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb`](https://sepolia.basescan.org/address/0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb)          |
-| Optimism         | [`0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb`](https://optimistic.etherscan.io/address/0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb)       |
-| Optimism Sepolia | [`0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb`](https://sepolia-optimism.etherscan.io/address/0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb) |
-| Scroll           | [`0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb`](https://scrollscan.com/address/0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb)                |
-| Scroll Sepolia   | [`0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb`](https://sepolia-blockscout.scroll.io/address/0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb)  |
-| Arbitrum         | [`0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb`](https://arbiscan.io/address/0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb)                   |
-| Arbitrum Sepolia | [`0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb`](https://sepolia.arbiscan.io/address/0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb)           |
-| Linea            | [`0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb`](https://lineascan.build/address/0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb)               |
-| Linea Sepolia    | [`0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb`](https://sepolia.lineascan.build/address/0xA59eF1DCc0c4bcbDC718b95c0680b6B97Bb451eb)       |
+| Base             | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://basescan.org/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)                  |
+| Base Sepolia     | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://sepolia.basescan.org/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)          |
+| Optimism         | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://optimistic.etherscan.io/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)       |
+| Optimism Sepolia | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://sepolia-optimism.etherscan.io/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5) |
+| Scroll           | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://scrollscan.com/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)                |
+| Scroll Sepolia   | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://sepolia-blockscout.scroll.io/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)  |
+| Arbitrum         | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://arbiscan.io/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)                   |
+| Arbitrum Sepolia | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://sepolia.arbiscan.io/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)           |
+| Linea            | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://lineascan.build/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)               |
+| Linea Sepolia    | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://sepolia.lineascan.build/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)       |
 
 ## Architecture
 
 ![architecture](https://github.com/user-attachments/assets/06065784-0516-498e-a512-d7b63892599a)
 
 > [!NOTE]  
-> A dependency for supporting new chains is a deployment of UniversalSigValidator to `0x164af34fAF9879394370C7f09064127C043A35E9`. The deployment is permissionless and can be found [here](https://github.com/ensdomains/ens-contracts/blob/8c414e4c41dce49c49efd0bf82c10a145cdc8f0a/deploy/utils/00_deploy_universal_sig_validator.ts).
+> A dependency for supporting `-withSignature` methods on new chains is a deployment of UniversalSigValidator to `0x164af34fAF9879394370C7f09064127C043A35E9`. The deployment is permissionless and can be found [here](https://github.com/ensdomains/ens-contracts/blob/8c414e4c41dce49c49efd0bf82c10a145cdc8f0a/deploy/utils/00_deploy_universal_sig_validator.ts).
 
 ## Deploying Durin
 
