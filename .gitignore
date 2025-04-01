@@ -16,4 +16,4 @@ docs/
 # misc
 broadcast/
 .DS_Store
-
+node_modules/
