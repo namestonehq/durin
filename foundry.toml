@@ -22,8 +22,8 @@ wrap_comments = false
 
 [rpc_endpoints]
 # Commenting out for safety — none of the contracts in this repo are meant to be deployed to mainnet
-# mainnet = "https://ethereum-rpc.publicnode.com"
-# sepolia = "https://ethereum-sepolia-rpc.publicnode.com"
+mainnet = "https://ethereum-rpc.publicnode.com"
+sepolia = "https://ethereum-sepolia-rpc.publicnode.com"
 base = "https://base-rpc.publicnode.com"
 base-sepolia = "https://base-sepolia-rpc.publicnode.com"
 arbitrum = "https://arbitrum-one-rpc.publicnode.com"
@@ -38,8 +38,8 @@ linea-sepolia = "https://linea-sepolia-rpc.publicnode.com"
 [etherscan]
 # Etherscan API keys are now universal, so we only need one
 # https://docs.etherscan.io/contract-verification/supported-chains
-# mainnet = { key = "${ETHERSCAN_API_KEY}" }
-# sepolia = { key = "${ETHERSCAN_API_KEY}" }
+mainnet = { key = "${ETHERSCAN_API_KEY}", chain = 1 }
+sepolia = { key = "${ETHERSCAN_API_KEY}", chain = 11155111 }
 base = { key = "${BASESCAN_API_KEY}", chain = 8453 }
 base-sepolia = { key = "${BASESCAN_API_KEY}", chain = 84532 }
 arbitrum = { key = "${ARBISCAN_API_KEY}", chain = 42161 }

@@ -22,12 +22,16 @@ interface IResolverService {
         returns (bytes memory result, uint64 expires, bytes memory sig);
 }
 
+interface IResolver {
+    function addr(bytes32 node) external view returns (address);
+}
+
 interface INameWrapper {
     function ownerOf(uint256 id) external view returns (address owner);
 }
 
 /// @notice Implements an ENS resolver that directs all queries to a CCIP read gateway.
-/// @dev Callers must implement EIP 3668 and ENSIP 10.
+/// @dev Callers must implement EIP 3668 and ENSIP 10. Only supports 2LDs.
 contract L1Resolver is IExtendedResolver {
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
@@ -39,12 +43,17 @@ contract L1Resolver is IExtendedResolver {
     }
 
     /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    ENS public constant ens = ENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
+
+    /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
 
     string public url;
-    ENS public ens;
-    INameWrapper public nameWrapper;
+    INameWrapper public immutable nameWrapper;
 
     mapping(address => bool) public signers;
     mapping(bytes32 node => L2Registry l2Registry) public l2Registry;
@@ -86,17 +95,17 @@ contract L1Resolver is IExtendedResolver {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor(
-        address _ens,
-        address _nameWrapper,
-        string memory _url,
-        address _signer
-    ) {
-        ens = ENS(_ens);
-        nameWrapper = INameWrapper(_nameWrapper);
+    constructor(string memory _url, address _signer) {
         url = _url;
         signers[_signer] = true;
         emit SignerAdded(_signer);
+
+        // Get the NameWrapper address from namewrapper.eth
+        // This allows us to have the same deploy bytecode on mainnet and sepolia
+        bytes32 _wrapperNode = 0xdee478ba2734e34d81c6adc77a32d75b29007895efa2fe60921f1c315e1ec7d9;
+        address _wrapperResolver = ens.resolver(_wrapperNode);
+        address _wrapperAddr = IResolver(_wrapperResolver).addr(_wrapperNode);
+        nameWrapper = INameWrapper(_wrapperAddr);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -162,8 +171,7 @@ contract L1Resolver is IExtendedResolver {
         );
 
         // Encode the parent name
-        (bytes memory parentNameEncoded, bytes32 parentNode) = NameEncoder
-            .dnsEncodeName(parentName);
+        (, bytes32 parentNode) = NameEncoder.dnsEncodeName(parentName);
 
         L2Registry memory targetL2Registry = l2Registry[parentNode];
 
