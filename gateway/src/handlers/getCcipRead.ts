@@ -31,28 +31,28 @@ export const getCcipRead = async (req: Bun.BunRequest) => {
         message: 'Invalid request',
         error: safeParse.error,
       },
-      { status: 400 }
+      {
+        status: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        },
+      }
     )
   }
 
   const { sender, data } = safeParse.data
 
-  // Since our L2Resolver implements the same interface as the L1Resolver that
-  // requests are coming from, we can just passthrough `data` to the L2Resolver.
-  // But we still need the name so we know which chain and L2Resolver to target.
-
-  const decodedResolveCall = decodeFunctionData({
-    abi: parseAbi([
-      'function resolve(bytes memory name, bytes memory data) view returns (bytes memory)',
-    ]),
+  const decodedStuffedResolveCall = decodeFunctionData({
+    abi: [resolverAbi[1]],
     data: data,
   })
 
   const { result, ttl } = await handleQuery({
-    dnsEncodedName: decodedResolveCall.args[0],
-    encodedResolveCall: decodedResolveCall.args[1] as Hex,
-    targetChainId: decodedResolveCall.args[2],
-    targetRegistryAddress: decodedResolveCall.args[3],
+    dnsEncodedName: decodedStuffedResolveCall.args[0],
+    encodedResolveCall: decodedStuffedResolveCall.args[1] as Hex,
+    targetChainId: decodedStuffedResolveCall.args[2],
+    targetRegistryAddress: decodedStuffedResolveCall.args[3],
   })
 
   const validUntil = Math.floor(Date.now() / 1000 + ttl)
@@ -70,6 +70,8 @@ export const getCcipRead = async (req: Bun.BunRequest) => {
       ]
     )
   )
+
+  console.log({ messageHash })
 
   const sig = await sign({
     hash: messageHash,
@@ -91,5 +93,14 @@ export const getCcipRead = async (req: Bun.BunRequest) => {
   )
 
   // "0x-prefixed hex string containing the result data."
-  return Response.json({ data: encodedResponse }, { status: 200 })
+  return Response.json(
+    { data: encodedResponse },
+    {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      },
+    }
+  )
 }

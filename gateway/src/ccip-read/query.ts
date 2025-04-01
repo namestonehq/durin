@@ -42,6 +42,8 @@ export async function handleQuery({
     (chain) => chain.id === Number(targetChainId)
   )
 
+  console.log({ functionName, args, l2Chain: l2Chain?.name })
+
   if (!l2Chain) {
     throw new Error(`Unsupported chain ${targetChainId}`)
   }
@@ -51,15 +53,6 @@ export async function handleQuery({
     transport: http(l2Chain.rpcUrl),
   })
 
-  const l2Resolver = await l2Client.readContract({
-    address: targetRegistryAddress,
-    abi: parseAbi([
-      'function resolver(uint256 tokenId) view returns (address)',
-    ]),
-    functionName: 'resolver',
-    args: [BigInt(labelhash(label))],
-  })
-
   // We need to find the correct ABI item for each function, otherwise `addr(node)` and `addr(node, coinType)` causes issues
   const abiItem: AbiItem | undefined = resolverAbi.find(
     (abi) => abi.name === functionName && abi.inputs.length === args.length
@@ -67,11 +60,13 @@ export async function handleQuery({
 
   // We can just pass through the call to our L2 resolver because it shares the same interface
   const res = (await l2Client.readContract({
-    address: l2Resolver,
+    address: targetRegistryAddress,
     abi: [abiItem],
     functionName,
     args,
   })) as string
+
+  console.log({ res, abiItem })
 
   return {
     ttl: 1000,
