@@ -29,20 +29,36 @@ interface INameWrapper {
 /// @notice Implements an ENS resolver that directs all queries to a CCIP read gateway.
 /// @dev Callers must implement EIP 3668 and ENSIP 10.
 contract L1Resolver is IExtendedResolver {
-    string public url;
-    ENS public ens;
-    INameWrapper nameWrapper;
+    /*//////////////////////////////////////////////////////////////
+                                STRUCTS
+    //////////////////////////////////////////////////////////////*/
 
     struct L2Registry {
         uint64 chainId;
         address registryAddress;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            STATE VARIABLES
+    //////////////////////////////////////////////////////////////*/
+
+    string public url;
+    ENS public ens;
+    INameWrapper public nameWrapper;
+
     mapping(address => bool) public signers;
     mapping(bytes32 node => L2Registry l2Registry) public l2Registry;
 
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+
     event SignerAdded(address signer);
     event SignerRemoved(address signer);
+
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
 
     error Unauthorized();
     error InvalidSignature();
@@ -55,6 +71,21 @@ contract L1Resolver is IExtendedResolver {
         bytes extraData
     );
 
+    /*//////////////////////////////////////////////////////////////
+                               MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
+    modifier onlySigners() {
+        if (!signers[msg.sender]) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
     constructor(
         address _ens,
         address _nameWrapper,
@@ -66,6 +97,28 @@ contract L1Resolver is IExtendedResolver {
         url = _url;
         signers[_signer] = true;
         emit SignerAdded(_signer);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            PUBLIC FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function setL2Registry(
+        bytes32 node,
+        uint64 targetChainId,
+        address targetRegistryAddress
+    ) external {
+        address owner = ens.owner(node);
+
+        if (owner == address(nameWrapper)) {
+            owner = nameWrapper.ownerOf(uint256(node));
+        }
+
+        if (owner != msg.sender) {
+            revert Unauthorized();
+        }
+
+        l2Registry[node] = L2Registry(targetChainId, targetRegistryAddress);
     }
 
     function makeSignatureHash(
@@ -123,6 +176,53 @@ contract L1Resolver is IExtendedResolver {
             );
     }
 
+    /// @notice Callback used by CCIP read compatible clients to parse and verify the response.
+    function resolveWithProof(
+        bytes calldata response,
+        bytes calldata extraData
+    ) external view returns (bytes memory) {
+        (address signer, bytes memory result) = SignatureVerifier.verify(
+            extraData,
+            response
+        );
+
+        if (!signers[signer]) {
+            revert InvalidSignature();
+        }
+
+        return result;
+    }
+
+    function supportsInterface(bytes4 interfaceID) public pure returns (bool) {
+        return
+            interfaceID == type(IExtendedResolver).interfaceId ||
+            interfaceID == 0x01ffc9a7; // ERC-165 interface
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            ADMIN FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Sets the URL for the resolver service. Only callable by the signers.
+    function setURL(string calldata _url) external onlySigners {
+        url = _url;
+    }
+
+    /// @notice Sets the signers for the resolver service. Only callable by the signers.
+    function addSigner(address _signer) external onlySigners {
+        signers[_signer] = true;
+        emit SignerAdded(_signer);
+    }
+
+    function removeSigner(address _signer) external onlySigners {
+        signers[_signer] = false;
+        emit SignerRemoved(_signer);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
     /// @dev Add target registry info to the CCIP Read error.
     function stuffedResolveCall(
         bytes calldata name,
@@ -148,69 +248,5 @@ contract L1Resolver is IExtendedResolver {
             L1Resolver.resolveWithProof.selector, // callbackFunction
             callData // extraData
         );
-    }
-
-    /// @notice Callback used by CCIP read compatible clients to parse and verify the response.
-    function resolveWithProof(
-        bytes calldata response,
-        bytes calldata extraData
-    ) external view returns (bytes memory) {
-        (address signer, bytes memory result) = SignatureVerifier.verify(
-            extraData,
-            response
-        );
-
-        if (!signers[signer]) {
-            revert InvalidSignature();
-        }
-
-        return result;
-    }
-
-    function supportsInterface(bytes4 interfaceID) public pure returns (bool) {
-        return
-            interfaceID == type(IExtendedResolver).interfaceId ||
-            interfaceID == 0x01ffc9a7; // ERC-165 interface
-    }
-
-    /// @notice Sets the URL for the resolver service. Only callable by the signers.
-    function setURL(string calldata _url) external onlySigners {
-        url = _url;
-    }
-
-    /// @notice Sets the signers for the resolver service. Only callable by the signers.
-    function addSigner(address _signer) external onlySigners {
-        signers[_signer] = true;
-        emit SignerAdded(_signer);
-    }
-
-    function removeSigner(address _signer) external onlySigners {
-        signers[_signer] = false;
-        emit SignerRemoved(_signer);
-    }
-
-    function setL2Registry(
-        bytes32 node,
-        uint64 targetChainId,
-        address targetRegistryAddress
-    ) external {
-        address owner = ens.owner(node);
-
-        if (owner == address(nameWrapper)) {
-            owner = nameWrapper.ownerOf(uint256(node));
-        }
-
-        if (owner != msg.sender) {
-            revert Unauthorized();
-        }
-
-        l2Registry[node] = L2Registry(targetChainId, targetRegistryAddress);
-    }
-
-    modifier onlySigners() {
-        if (!signers[msg.sender]) {
-            revert Unauthorized();
-        }
-        _;
     }
 }
