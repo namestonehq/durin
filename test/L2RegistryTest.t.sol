@@ -2,13 +2,14 @@
 pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
-
-import {L2Registry} from "../src/L2Registry.sol";
-import {L2RegistryFactory} from "../src/L2RegistryFactory.sol";
-import {IL2Resolver} from "../src/interfaces/IL2Resolver.sol";
-import {ENSDNSUtils} from "./utils/ENSDNSUtils.sol";
-import {MockRegistrar} from "./mocks/MockRegistrar.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+
+import {L2Registry} from "src/L2Registry.sol";
+import {L2RegistryFactory} from "src/L2RegistryFactory.sol";
+import {IL2Resolver} from "src/interfaces/IL2Resolver.sol";
+import {ENSDNSUtils} from "src/lib/ENSDNSUtils.sol";
+
+import {MockRegistrar} from "./mocks/MockRegistrar.sol";
 
 contract L2RegistryTest is Test {
     using MessageHashUtils for bytes32;
