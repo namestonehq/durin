@@ -1,4 +1,4 @@
-import { type Hex, parseAbi } from 'viem'
+import { type Hex, parseAbi, serializeSignature } from 'viem'
 import { sign } from 'viem/accounts'
 import {
   concat,
@@ -55,6 +55,8 @@ export const getCcipRead = async (req: Bun.BunRequest) => {
     targetRegistryAddress: decodedStuffedResolveCall.args[3],
   })
 
+  console.log(result)
+
   const validUntil = Math.floor(Date.now() / 1000 + ttl)
 
   // Specific to `makeSignatureHash()` in the contract https://etherscan.io/address/0xDB34Da70Cfd694190742E94B7f17769Bc3d84D27#code#F2#L14
@@ -77,7 +79,6 @@ export const getCcipRead = async (req: Bun.BunRequest) => {
     hash: messageHash,
     privateKey: process.env.SIGNER_PRIVATE_KEY as Hex,
   })
-  const sigData = concat([sig.r, sig.s, toHex(sig.v!)])
 
   // An ABI encoded tuple of `(bytes result, uint64 expires, bytes sig)`, where
   // `result` is the data to return to the caller, and
@@ -89,7 +90,7 @@ export const getCcipRead = async (req: Bun.BunRequest) => {
       { name: 'expires', type: 'uint64' },
       { name: 'sig', type: 'bytes' },
     ],
-    [result, BigInt(validUntil), sigData]
+    [result, BigInt(validUntil), serializeSignature(sig)]
   )
 
   // "0x-prefixed hex string containing the result data."

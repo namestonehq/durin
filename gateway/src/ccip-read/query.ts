@@ -30,7 +30,6 @@ export async function handleQuery({
   targetRegistryAddress,
 }: HandleQueryArgs) {
   const name = dnsDecodeName(dnsEncodedName)
-  const [label] = name.split('.')
 
   // Decode the internal resolve call like addr(), text() or contenthash()
   const { functionName, args } = decodeFunctionData({
@@ -41,8 +40,6 @@ export async function handleQuery({
   const l2Chain = supportedChains.find(
     (chain) => chain.id === Number(targetChainId)
   )
-
-  console.log({ functionName, args, l2Chain: l2Chain?.name })
 
   if (!l2Chain) {
     throw new Error(`Unsupported chain ${targetChainId}`)
@@ -66,7 +63,14 @@ export async function handleQuery({
     args,
   })) as string
 
-  console.log({ res, abiItem })
+  console.log({
+    targetChainId,
+    targetRegistryAddress,
+    name,
+    functionName,
+    args,
+    res,
+  })
 
   return {
     ttl: 1000,

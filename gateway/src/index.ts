@@ -7,7 +7,7 @@ Bun.serve({
       GET: (req) => getCcipRead(req),
     },
   },
-  fetch(req) {
+  fetch() {
     return new Response('Not found', { status: 404 })
   },
 })
