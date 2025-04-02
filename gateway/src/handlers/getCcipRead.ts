@@ -55,8 +55,6 @@ export const getCcipRead = async (req: Bun.BunRequest) => {
     targetRegistryAddress: decodedStuffedResolveCall.args[3],
   })
 
-  console.log(result)
-
   const validUntil = Math.floor(Date.now() / 1000 + ttl)
 
   // Specific to `makeSignatureHash()` in the contract https://etherscan.io/address/0xDB34Da70Cfd694190742E94B7f17769Bc3d84D27#code#F2#L14
@@ -72,8 +70,6 @@ export const getCcipRead = async (req: Bun.BunRequest) => {
       ]
     )
   )
-
-  console.log({ messageHash })
 
   const sig = await sign({
     hash: messageHash,
