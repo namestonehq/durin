@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
 // ***********************************************
 // ▗▖  ▗▖ ▗▄▖ ▗▖  ▗▖▗▄▄▄▖ ▗▄▄▖▗▄▄▄▖▗▄▖ ▗▖  ▗▖▗▄▄▄▖
 // ▐▛▚▖▐▌▐▌ ▐▌▐▛▚▞▜▌▐▌   ▐▌     █ ▐▌ ▐▌▐▛▚▖▐▌▐▌
@@ -5,329 +8,242 @@
 // ▐▌  ▐▌▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖▗▄▄▞▘  █ ▝▚▄▞▘▐▌  ▐▌▐▙▄▄▖
 // ***********************************************
 
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
-
-/// @author darianb.eth + Unruggable(clowes.eth)
-/// @custom:project Durin
-/// @custom:company NameStone
-/// @notice Combined registry and resolver contract for Layer 2 name resolution
-/// @dev Implements ERC721 for name ownership and AccessControl for permissions
-
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {NameEncoder} from "@ensdomains/ens-contracts/utils/NameEncoder.sol";
 
-/// @title Registry/Resolver All-in-one (for Layer 2)
-/// @notice Manages name registration, ownership, and resolution on Layer 2
-/// @dev Uses labelhash instead of node for resolution functions
-contract L2Registry is ERC721, AccessControl {
-    /// @notice Implements interface detection for ERC721 and AccessControl
-    /// @param x The interface identifier to check
-    /// @return bool True if the interface is supported
-    function supportsInterface(
-        bytes4 x
-    ) public view override(ERC721, AccessControl) returns (bool) {
-        return super.supportsInterface(x);
-    }
+import {L2Resolver} from "./L2Resolver.sol";
 
-    /// @notice Check if caller is token operator or has registrar role
-    /// @param labelhash The hash of the label to check permissions for
-    modifier onlyTokenOperatorOrRegistrar(bytes32 labelhash) {
-        address owner = _ownerOf(uint256(labelhash));
-        if (
-            owner != msg.sender &&
-            !isApprovedForAll(owner, msg.sender) &&
-            !hasRole(REGISTRAR_ROLE, msg.sender)
-        ) {
-            revert Unauthorized();
+/// @title Durin Registry
+/// @author NameStone
+/// @notice Manages ENS subname registration and management on L2
+/// @dev Combined Registry, BaseRegistrar and PublicResolver from the official .eth contracts
+contract L2Registry is ERC721, Initializable, L2Resolver {
+    /*//////////////////////////////////////////////////////////////
+                            STATE VARIABLES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The base node for the registry
+    /// @dev namehash of `name()`
+    bytes32 public baseNode;
+
+    string private _tokenName;
+    string private _tokenSymbol;
+    string private _tokenBaseURI;
+
+    /// @notice Mapping of node (namehash) to name (DNS-encoded)
+    mapping(bytes32 node => bytes name) public names;
+
+    /// @notice Mapping of approved registrar controllers
+    mapping(address registrar => bool approved) public registrars;
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Emitted when a name is created at any level
+    event SubnodeCreated(bytes32 indexed node, bytes name, address owner);
+
+    /// @notice Emitted when a subnode is registered at any level
+    /// @dev Same event signature as the ENS Registry
+    event NewOwner(
+        bytes32 indexed parentNode,
+        bytes32 indexed labelhash,
+        address owner
+    );
+
+    event RegistrarAdded(address registrar);
+    event RegistrarRemoved(address registrar);
+    event BaseURIUpdated(string baseURI);
+
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    error LabelTooShort();
+    error LabelTooLong(string label);
+    error NotAvailable(string label, bytes32 parentNode);
+
+    /*//////////////////////////////////////////////////////////////
+                               MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Only the owner of the node or a registrar can call the function
+    modifier onlyOwnerOrRegistrar(bytes32 node) {
+        if (owner(node) != msg.sender && !registrars[msg.sender]) {
+            revert Unauthorized(node);
         }
         _;
     }
-    /// @notice Thrown when caller lacks required permissions
-    error Unauthorized();
-    /// @notice Thrown when initialization is attempted twice
-    error AlreadyInitialized();
 
-    /// @notice Emitted when a new name is registered
-    event Registered(string label, address owner);
-    /// @notice Emitted when a text record is changed
-    event TextChanged(bytes32 indexed labelhash, string key, string value);
-    /// @notice Emitted when an address record is changed
-    event AddrChanged(bytes32 indexed labelhash, uint256 coinType, bytes value);
-    /// @notice Emitted when a content hash is changed
-    event ContenthashChanged(bytes32 indexed labelhash, bytes value);
-
-    /// @notice Structure for text record updates
-    /// @dev Used to prevent stack too deep errors in multicall functions
-    struct Text {
-        string key;
-        string value;
+    modifier onlyOwner() {
+        if (owner() != msg.sender) {
+            revert Unauthorized(baseNode);
+        }
+        _;
     }
 
-    /// @notice Structure for address record updates
-    /// @dev Used to prevent stack too deep errors in multicall functions
-    struct Addr {
-        uint256 coinType;
-        bytes value;
+    /*//////////////////////////////////////////////////////////////
+                              CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
+    constructor() ERC721("", "") {
+        _disableInitializers();
     }
 
-    /*
-     * Access Control Roles
-     */
-    /// @notice Role identifier for administrative operations
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    /// @notice Role identifier for registrar operations
-    bytes32 public constant REGISTRAR_ROLE = keccak256("REGISTRAR_ROLE");
-
-    /*
-     * Constants
-     */
-    /// @notice Ethereum coin type as per SLIP-0044
-    uint256 constant COIN_TYPE_ETH = 60;
-
-    /*
-     * Properties
-     */
-    /// @notice Total number of registered names
-    uint256 public totalSupply;
-    /// @notice Flag to track initialization status
-    bool private _initialized;
-    /// @notice Base URI for token metadata
-    string public baseUri;
-    ///  @notice Store name and symbol as public variables
-    string private _name;
-    string private _symbol;
-    /// @notice Mapping of text records for each name
-    mapping(bytes32 labelhash => mapping(string key => string)) _texts;
-    /// @notice Mapping of address records for each name
-    mapping(bytes32 labelhash => mapping(uint256 coinType => bytes)) _addrs;
-    /// @notice Mapping of content hashes for each name
-    mapping(bytes32 labelhash => bytes) _chashes;
-    /// @notice Mapping of labels (names) for each labelhash
-    mapping(bytes32 labelhash => string) _labels;
-
-    // Initialize with placeholder values that will be updated in initialize()
-    constructor() ERC721("", "") {}
-
-    /// @notice Initializes the registry with name, symbol, and base URI
-    /// @param tokenName The name for the ERC721 token
-    /// @param tokenSymbol The symbol for the ERC721 token
-    /// @param _baseUri The base URI for token metadata
+    /// @notice Initializes the registry
+    /// @param tokenName The parent ENS name, and name of the NFT collection
+    /// @param tokenSymbol The symbol of the NFT collection
+    /// @param baseURI The base URI of the NFT collection
+    /// @param admin The address that will be granted admin role
     function initialize(
-        string memory tokenName,
-        string memory tokenSymbol,
-        string memory _baseUri
-    ) external {
-        if (_initialized) {
-            revert AlreadyInitialized();
+        string calldata tokenName,
+        string calldata tokenSymbol,
+        string calldata baseURI,
+        address admin
+    ) external initializer {
+        (bytes memory dnsEncodedName, bytes32 node) = NameEncoder.dnsEncodeName(
+            tokenName
+        );
+
+        // ERC721
+        _tokenName = tokenName;
+        _tokenSymbol = tokenSymbol;
+        _setBaseURI(baseURI);
+
+        // Registry
+        baseNode = node;
+        names[baseNode] = dnsEncodedName;
+        _safeMint(admin, uint256(node));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            PUBLIC FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Creates a subnode from a parent node and label
+    /// @dev Only callable by the owner of the parent node
+    /// @param node The parent node, e.g. `namehash("name.eth")` for "name.eth"
+    /// @param label The label of the subnode, e.g. "x" for "x.name.eth"
+    /// @param _owner The address that will own the subnode
+    /// @param data The encoded calldata for resolver setters
+    /// @return The resulting subnode, e.g. `namehash("x.name.eth")` for "x.name.eth"
+    function createSubnode(
+        bytes32 node,
+        string calldata label,
+        address _owner,
+        bytes[] calldata data
+    ) external onlyOwnerOrRegistrar(node) returns (bytes32) {
+        bytes32 labelhash = keccak256(abi.encodePacked(label));
+        bytes32 subnode = makeNode(node, labelhash);
+        bytes memory dnsEncodedName = _addLabel(label, names[node]);
+
+        if (owner(subnode) != address(0)) {
+            revert NotAvailable(label, node);
         }
 
-        _initialized = true;
+        _safeMint(_owner, uint256(subnode));
+        _multicall(subnode, data);
+        names[subnode] = dnsEncodedName;
 
-        // Store the name and symbol in our public variables
-        _name = tokenName;
-        _symbol = tokenSymbol;
-        baseUri = _baseUri;
-
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(ADMIN_ROLE, msg.sender);
+        emit NewOwner(node, labelhash, _owner);
+        emit SubnodeCreated(subnode, dnsEncodedName, _owner);
+        return subnode;
     }
 
-    // Override name() and symbol() from ERC721
+    /// @notice The admin of the registry
+    function owner() public view returns (address) {
+        return owner(baseNode);
+    }
+
+    /// @notice Returns the address that owns the specified node
+    /// @dev We need this because `ERC721.ownerOf()` reverts if the token doesn't exist
+    function owner(bytes32 node) public view returns (address) {
+        return _ownerOf(uint256(node));
+    }
+
+    /// @notice Helper to derive a node from a parent node and labelhash
+    /// @param node The parent node, e.g. `namehash("name.eth")` for "name.eth"
+    /// @param labelhash The labelhash of the subnode, e.g. `keccak256("x")` for "x.name.eth"
+    /// @return The resulting subnode, e.g. `namehash("x.name.eth")` for "x.name.eth"
+    function makeNode(
+        bytes32 node,
+        bytes32 labelhash
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(node, labelhash));
+    }
+
+    /// @notice The name of the NFT collection and base ENS name
     function name() public view override returns (string memory) {
-        return _name;
+        return _tokenName;
     }
 
+    /// @notice The symbol of the NFT collection
     function symbol() public view override returns (string memory) {
-        return _symbol;
+        return _tokenSymbol;
     }
 
-    /// @notice Returns the base URI for token metadata
-    /// @return string The base URI
-    function _baseURI() internal view override returns (string memory) {
-        return baseUri;
+    /// @notice The base URI for NFT metadata
+    function _baseURI() internal view virtual override returns (string memory) {
+        return _tokenBaseURI;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                            ADMIN FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice Adds a new registrar address
     /// @param registrar The address to grant registrar role to
     /// @dev Only callable by admin role
-    function addRegistrar(address registrar) external onlyRole(ADMIN_ROLE) {
-        _grantRole(REGISTRAR_ROLE, registrar);
+    function addRegistrar(address registrar) external onlyOwner {
+        registrars[registrar] = true;
+        emit RegistrarAdded(registrar);
     }
 
     /// @notice Removes a registrar address
     /// @param registrar The address to revoke registrar role from
     /// @dev Only callable by admin role
-    function removeRegistrar(address registrar) external onlyRole(ADMIN_ROLE) {
-        _revokeRole(REGISTRAR_ROLE, registrar);
+    function removeRegistrar(address registrar) external onlyOwner {
+        registrars[registrar] = false;
+        emit RegistrarRemoved(registrar);
     }
 
-    /// @notice Registers a new name
-    /// @param label The name to register
-    /// @param owner The address that will own the name
-    /// @dev Only callable by addresses with registrar role
-    function register(
-        string calldata label,
-        address owner
-    ) external onlyRole(REGISTRAR_ROLE) {
-        bytes32 labelhash = keccak256(abi.encodePacked(label));
-        uint256 tokenId = uint256(labelhash);
-        // This will fail if the node is already registered
-        _safeMint(owner, tokenId);
-        _labels[labelhash] = label;
-        totalSupply++;
-        emit Registered(label, owner);
-    }
-
-    /*
-     * Resolution Functions
-     */
-    /// @notice Gets the Ethereum address for a name
-    /// @param labelhash The hash of the name to resolve
-    /// @return address The Ethereum address
-    function addr(bytes32 labelhash) public view returns (address) {
-        return address(uint160(bytes20(addr(labelhash, COIN_TYPE_ETH))));
-    }
-
-    /// @notice Gets the address for a specific coin type
-    /// @param labelhash The hash of the name to resolve
-    /// @param cointype The coin type to fetch the address for
-    /// @return bytes The address for the specified coin
-    function addr(
-        bytes32 labelhash,
-        uint256 cointype
-    ) public view returns (bytes memory) {
-        return _addrs[labelhash][cointype];
-    }
-
-    /// @notice Gets a text record
-    /// @param labelhash The hash of the name
-    /// @param key The key of the text record
-    /// @return string The value of the text record
-    function text(
-        bytes32 labelhash,
-        string calldata key
-    ) external view returns (string memory) {
-        return _texts[labelhash][key];
-    }
-
-    /// @notice Gets the content hash
-    /// @param labelhash The hash of the name
-    /// @return bytes The content hash
-    function contenthash(
-        bytes32 labelhash
-    ) external view returns (bytes memory) {
-        return _chashes[labelhash];
-    }
-
-    /// @notice Gets the label (name) for a labelhash
-    /// @param labelhash The hash to lookup
-    /// @return string The original label
-    function labelFor(bytes32 labelhash) external view returns (string memory) {
-        return _labels[labelhash];
-    }
-
-    /*
-     * Record Management Functions
-     */
     /// @notice Sets the base URI for token metadata
-    /// @param _baseUri The new base URI
+    /// @param baseURI The new base URI
     /// @dev Only callable by admin role
-    function setBaseURI(string memory _baseUri) external onlyRole(ADMIN_ROLE) {
-        baseUri = _baseUri;
+    function setBaseURI(string memory baseURI) external onlyOwner {
+        _setBaseURI(baseURI);
     }
 
-    /// @notice Internal function to set address records
-    /// @param labelhash The name's hash
-    /// @param coinType The coin type to set address for
-    /// @param value The address value
-    function _setAddr(
-        bytes32 labelhash,
-        uint256 coinType,
-        bytes memory value
-    ) internal {
-        _addrs[labelhash][coinType] = value;
-        emit AddrChanged(labelhash, coinType, value);
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function _setBaseURI(string memory baseURI) private {
+        _tokenBaseURI = baseURI;
+        emit BaseURIUpdated(baseURI);
     }
 
-    /// @notice Internal function to set text records
-    /// @param labelhash The name's hash
-    /// @param key The record key
-    /// @param value The record value
-    function _setText(
-        bytes32 labelhash,
-        string memory key,
-        string memory value
-    ) internal {
-        _texts[labelhash][key] = value;
-        emit TextChanged(labelhash, key, value);
-    }
-
-    /// @notice Internal function to set content hash
-    /// @param labelhash The name's hash
-    /// @param value The content hash value
-    function _setContenthash(bytes32 labelhash, bytes memory value) internal {
-        _chashes[labelhash] = value;
-        emit ContenthashChanged(labelhash, value);
-    }
-
-    /// @notice Public function to set address records with access control
-    /// @param labelhash The name's hash
-    /// @param coinType The coin type to set address for
-    /// @param value The address value
-    function setAddr(
-        bytes32 labelhash,
-        uint256 coinType,
-        bytes memory value
-    ) public onlyTokenOperatorOrRegistrar(labelhash) {
-        _setAddr(labelhash, coinType, value);
-    }
-
-    /// @notice Public function to set text records with access control
-    /// @param labelhash The name's hash
-    /// @param key The record key
-    /// @param value The record value
-    function setText(
-        bytes32 labelhash,
-        string memory key,
-        string memory value
-    ) public onlyTokenOperatorOrRegistrar(labelhash) {
-        _setText(labelhash, key, value);
-    }
-
-    /// @notice Public function to set content hash with access control
-    /// @param labelhash The name's hash
-    /// @param value The content hash value
-    function setContenthash(
-        bytes32 labelhash,
-        bytes memory value
-    ) public onlyTokenOperatorOrRegistrar(labelhash) {
-        _setContenthash(labelhash, value);
-    }
-
-    /// @notice Batch sets multiple records in one transaction
-    /// @param labelhash The name's hash
-    /// @param texts Array of text records to set
-    /// @param addrs Array of address records to set
-    /// @param chash Content hash to set (optional)
-    function setRecords(
-        bytes32 labelhash,
-        Text[] calldata texts,
-        Addr[] calldata addrs,
-        bytes calldata chash
-    ) external onlyTokenOperatorOrRegistrar(labelhash) {
-        uint256 i;
-
-        for (i = 0; i < texts.length; i++) {
-            _setText(labelhash, texts[i].key, texts[i].value);
+    function _addLabel(
+        string memory label,
+        bytes memory _name
+    ) private pure returns (bytes memory ret) {
+        if (bytes(label).length < 1) {
+            revert LabelTooShort();
         }
-
-        for (i = 0; i < addrs.length; i++) {
-            _setAddr(labelhash, addrs[i].coinType, addrs[i].value);
+        if (bytes(label).length > 255) {
+            revert LabelTooLong(label);
         }
+        return abi.encodePacked(uint8(bytes(label).length), label, _name);
+    }
 
-        if (chash.length > 0) {
-            _setContenthash(labelhash, chash);
-        }
+    /*//////////////////////////////////////////////////////////////
+                           REQUIRED OVERRIDES
+    //////////////////////////////////////////////////////////////*/
+
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view override(ERC721, L2Resolver) returns (bool) {
+        return super.supportsInterface(interfaceId);
     }
 }

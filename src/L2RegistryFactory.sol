@@ -1,107 +1,73 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
 // ***********************************************
 // ▗▖  ▗▖ ▗▄▖ ▗▖  ▗▖▗▄▄▄▖ ▗▄▄▖▗▄▄▄▖▗▄▖ ▗▖  ▗▖▗▄▄▄▖
 // ▐▛▚▖▐▌▐▌ ▐▌▐▛▚▞▜▌▐▌   ▐▌     █ ▐▌ ▐▌▐▛▚▖▐▌▐▌
 // ▐▌ ▝▜▌▐▛▀▜▌▐▌  ▐▌▐▛▀▀▘ ▝▀▚▖  █ ▐▌ ▐▌▐▌ ▝▜▌▐▛▀▀▘
 // ▐▌  ▐▌▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖▗▄▄▞▘  █ ▝▚▄▞▘▐▌  ▐▌▐▙▄▄▖
 // ***********************************************
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
 
-/// @author darianb.eth
-/// @custom:project Durin
-/// @custom:company NameStone
-/// @notice Factory contract for deploying new L2Registry instances
-/// @dev Uses OpenZeppelin Clones for gas-efficient deployment of registry contracts
-
-import {L2Registry} from "./L2Registry.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
-import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 
-/// @title L2Registry Factory
-/// @notice Facilitates the deployment of new L2Registry instances with proper role configuration
-/// @dev Uses minimal proxy pattern through OpenZeppelin's Clones library
+import {IL2Registry} from "./interfaces/IL2Registry.sol";
+
+/// @title Durin Registry Factory
+/// @author NameStone
+/// @notice Facilitates the deployment of new ENS subname registries
 contract L2RegistryFactory {
-    /// @notice The implementation contract to clone
-    address public immutable implementationContract;
+    /*//////////////////////////////////////////////////////////////
+                            STATE VARIABLES
+    //////////////////////////////////////////////////////////////*/
 
-    /// @notice The salt used for implementation deployment
-    bytes32 public immutable IMPLEMENTATION_SALT;
+    /// @notice The implementation contract to clone
+    address public immutable registryImplementation;
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice Emitted when a new registry is deployed
-    /// @param registryAddress The address of the newly deployed registry
-    /// @param name The name of the registry's ERC721 token
-    /// @param symbol The symbol of the registry's ERC721 token
-    /// @param baseUri The base URI for the registry's token metadata
+    /// @param name The parent ENS name for the registry
     /// @param admin The address granted admin roles for the new registry
-    event RegistryDeployed(
-        address registryAddress,
-        string name,
-        string symbol,
-        string baseUri,
-        address admin
-    );
+    /// @param registry The address of the newly deployed registry
+    event RegistryDeployed(string name, address admin, address registry);
 
-    /// @notice Constructor that deploys the implementation contract deterministically
-    /// @param salt The salt used for implementation deployment
-    constructor(bytes32 salt) {
-        IMPLEMENTATION_SALT = salt;
+    /*//////////////////////////////////////////////////////////////
+                              CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
 
-        // Deploy implementation using CREATE2
-        bytes memory bytecode = type(L2Registry).creationCode;
-        implementationContract = Create2.deploy(
-            0,
-            IMPLEMENTATION_SALT,
-            bytecode
-        );
+    constructor(address _registryImplementation) {
+        registryImplementation = _registryImplementation;
     }
 
-    /// @notice Gets the deterministic address for the implementation contract
-    /// @return The address where the implementation contract will be deployed
-    function getImplementationAddress() public view returns (address) {
-        bytes memory bytecode = type(L2Registry).creationCode;
-        return
-            Create2.computeAddress(
-                IMPLEMENTATION_SALT,
-                keccak256(bytecode),
-                address(this)
-            );
-    }
+    /*//////////////////////////////////////////////////////////////
+                            PUBLIC FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
-    /// @notice Deploys a new L2Registry contract with specified parameters using clones
-    /// @param name The name for the registry's ERC721 token
-    /// @param symbol The symbol for the registry's ERC721 token
-    /// @param baseUri The base URI for the registry's token metadata
+    /// @notice Deploys a new L2Registry contract with default parameters
+    /// @param name The parent ENS name for the registry, e.g. "example.eth"
     /// @return address The address of the newly deployed registry clone
-    /// @dev Uses minimal proxy pattern to create cheap clones of the implementation
+    function deployRegistry(string calldata name) external returns (address) {
+        return deployRegistry(name, "", "", msg.sender);
+    }
+
+    /// @notice Deploys a new L2Registry contract with specified parameters
+    /// @param name The parent ENS name for the registry, e.g. "example.eth"
+    /// @param symbol The symbol for the registry's ERC721 token
+    /// @param baseURI The URI for the NFT's metadata
+    /// @param admin The address to grant admin roles to
+    /// @return address The address of the newly deployed registry clone
     function deployRegistry(
-        string memory name,
+        string calldata name,
         string memory symbol,
-        string memory baseUri
+        string memory baseURI,
+        address admin
     ) public returns (address) {
-        // Clone the implementation contract
-        address clone = Clones.clone(implementationContract);
-        L2Registry registry = L2Registry(clone);
+        address registry = Clones.clone(registryImplementation);
+        IL2Registry(registry).initialize(name, symbol, baseURI, admin);
 
-        // Initialize the clone
-        registry.initialize(name, symbol, baseUri);
-
-        // Grant admin roles to the caller
-        registry.grantRole(registry.DEFAULT_ADMIN_ROLE(), msg.sender);
-        registry.grantRole(registry.ADMIN_ROLE(), msg.sender);
-
-        // Renounce factory's admin roles
-        registry.renounceRole(registry.DEFAULT_ADMIN_ROLE(), address(this));
-        registry.renounceRole(registry.ADMIN_ROLE(), address(this));
-
-        // Emit event for indexing and tracking purposes
-        emit RegistryDeployed(
-            address(registry),
-            name,
-            symbol,
-            baseUri,
-            msg.sender
-        );
-
-        return address(registry);
+        emit RegistryDeployed(name, admin, registry);
+        return registry;
     }
 }

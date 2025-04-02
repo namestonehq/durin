@@ -1,0 +1,23 @@
+{
+  "name": "gateway",
+  "version": "1.0.0",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts"
+  },
+  "devDependencies": {
+    "@trivago/prettier-plugin-sort-imports": "^5.2.2",
+    "@types/bun": "^1.2.8",
+    "prettier": "3.5.3"
+  },
+  "dependencies": {
+    "evm-providers": "^0.5.6",
+    "viem": "^2.21.3",
+    "zod": "^3.21.4"
+  },
+  "peerDependencies": {
+    "typescript": "^5.8.2"
+  }
+}

@@ -14,5 +14,6 @@ docs/
 .env
 
 # misc
-.github/
 broadcast/
+.DS_Store
+node_modules/

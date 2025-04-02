@@ -5,6 +5,10 @@ libs = ["lib"]
 # The verbosity level to use during tests.
 verbosity = 3
 solc_version = "0.8.20" 
+evm_version = "london"
+optimizer = true
+optimizer_runs = 200
+create2_deployer = "0x4e59b44847b379578588920cA78FbF26c0B4956C"
 
 [fmt]
 bracket_spacing = true
@@ -17,13 +21,19 @@ tab_width = 4
 wrap_comments = false
 
 [rpc_endpoints]
+# Commenting out for safety — none of the contracts in this repo are meant to be deployed to mainnet
 mainnet = "https://ethereum-rpc.publicnode.com"
 sepolia = "https://ethereum-sepolia-rpc.publicnode.com"
-base = "https://mainnet.base.org"
+base = "https://base-rpc.publicnode.com"
+base-sepolia = "https://base-sepolia-rpc.publicnode.com"
 arbitrum = "https://arbitrum-one-rpc.publicnode.com"
-
-[etherscan]
-mainnet = { key = "${ETHERSCAN_API_KEY}" }
+arbitrum-sepolia = "https://arbitrum-sepolia-rpc.publicnode.com"
+optimism = "https://optimism-rpc.publicnode.com"
+optimism-sepolia = "https://optimism-sepolia-rpc.publicnode.com"
+scroll = "https://scroll-rpc.publicnode.com"
+scroll-sepolia = "https://scroll-sepolia-rpc.publicnode.com"
+linea = "https://linea-rpc.publicnode.com"
+linea-sepolia = "https://linea-sepolia-rpc.publicnode.com"
 
 [fuzz]
 # The amount of fuzz runs to perform for each fuzz test case. 
