@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "forge-std/Script.sol";
 import "src/L1Resolver.sol";
 
-/// @dev Run with `./deploy/DeployL1Resolver.sh`
+/// @dev Run with `./bash/DeployL1Resolver.sh`
 contract DeployL1Resolver is Script {
     string public network = "sepolia";
 

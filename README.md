@@ -119,16 +119,24 @@ This repo includes the L2 contracts required to enable subname issuance.
 > [!NOTE]  
 > A dependency for supporting `-withSignature` methods on new chains is a deployment of UniversalSigValidator to `0x164af34fAF9879394370C7f09064127C043A35E9`. The deployment is permissionless and can be found [here](https://github.com/ensdomains/ens-contracts/blob/8c414e4c41dce49c49efd0bf82c10a145cdc8f0a/deploy/utils/00_deploy_universal_sig_validator.ts).
 
-## Deploying Durin
+# Deploying Durin
+
+> [!NOTE]  
+> Developers that want to issue subnames on one of the chains listed above in the [Active Registry Factory Deployments](#active-registry-factory-deployments) section do not need to read any further.
 
 1. Create a `.env` file via `cp .env.example .env`. You don't need to change anything.
-2. In [DeployL2Contracts.s.sol](./scripts/DeployL2Contracts.s.sol), make sure the chains you want to deploy to are uncommented.
-3. Run `./deploy/DeployDurin.sh` to deploy the registry implementation and factory contracts to the specified chains.
-4. Run `./deploy/VerifyL2RegistryImplementation.sh` and `./deploy/VerifyL2RegistryFactory.sh` a bunch of times, changing `NETWORK` and `BLOCK_EXPLORER_API_KEY` in the files, to verify all the contracts you just deployed. Unfortunately forge's verification is flaky for multi-chain deployments.
+2. Add/uncomment the chains you want to deploy to in [foundry.toml](./foundry.toml#L23) and [DeployL2Contracts.s.sol](./scripts/DeployL2Contracts.s.sol#L30).
+3. Run `./bash/DeployL2Contracts.sh` to deploy the registry implementation and factory contracts to the specified chains.
+4. Run `./bash/VerifyL2Contracts.sh` for each chain you deployed to, changing `NETWORK` and `BLOCK_EXPLORER_API_KEY` in the files, to verify all the contracts you just deployed.
+5. Add your chain(s) to [query.ts](./gateway/src/ccip-read/query.ts#L8) in the gateway config.
 
-### CREATE2 Tips
+## Initial Setup
 
-For generating a CREATE2 salt to deploy the registry factory, run the command below. Use [./scripts/L2RegistryFactoryInitCode.s.sol](./scripts/L2RegistryFactoryInitCode.s.sol) to calculate the init code hash, and [pcaversaccio/create2deployer](https://github.com/pcaversaccio/create2deployer) to deploy the contract.
+Run `./bash/DeployL1Resolver.sh` followed by `./bash/VerifyL1Resolver.sh` to deploy and verify the L1 Resolver. This is L2 chain agnostic, so only needs to be done once.
+
+## CREATE2 Tips
+
+For generating a CREATE2 salt to deploy the L2RegistryFactory, run the command below. Use [./scripts/L2RegistryFactoryInitCode.s.sol](./scripts/L2RegistryFactoryInitCode.s.sol) to calculate the init code hash.
 
 ```bash
 export FACTORY="0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF2"

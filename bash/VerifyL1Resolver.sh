@@ -1,6 +1,12 @@
 #!/bin/bash
 source .env
 
+if [ -z "$L1_RESOLVER_URL" ] || [ -z "$L1_RESOLVER_SIGNER" ] || [ -z "$L1_RESOLVER_OWNER" ]; then
+    echo "Error: L1_RESOLVER_URL, L1_RESOLVER_SIGNER, and L1_RESOLVER_OWNER must be set"
+    exit 1
+fi
+
+# Verify on desired network ("mainnet" or "sepolia")
 NETWORK="sepolia"
 
 # Encode constructor arguments (string, address)
