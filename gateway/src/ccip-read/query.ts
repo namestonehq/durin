@@ -5,12 +5,18 @@ import {
   arbitrumSepolia,
   base,
   baseSepolia,
+  celo,
+  celoAlfajores,
   linea,
   lineaSepolia,
   optimism,
   optimismSepolia,
+  polygon,
+  polygonAmoy,
   scroll,
   scrollSepolia,
+  worldchain,
+  worldchainSepolia,
 } from 'viem/chains'
 import { decodeFunctionData } from 'viem/utils'
 
@@ -27,6 +33,12 @@ const supportedChains = [
   lineaSepolia,
   scroll,
   scrollSepolia,
+  celo,
+  celoAlfajores,
+  worldchain,
+  worldchainSepolia,
+  polygon,
+  polygonAmoy,
 ]
 
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY
