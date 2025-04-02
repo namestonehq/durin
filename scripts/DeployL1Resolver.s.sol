@@ -6,6 +6,7 @@ import "src/L1Resolver.sol";
 
 /// @dev Run with `./bash/DeployL1Resolver.sh`
 contract DeployL1Resolver is Script {
+    // "sepolia" or "mainnet"
     string public network = "sepolia";
 
     function setUp() public {}
