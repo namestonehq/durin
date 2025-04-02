@@ -6,14 +6,18 @@ import "src/L1Resolver.sol";
 
 /// @dev Run with `./deploy/DeployL1Resolver.sh`
 contract DeployL1Resolver is Script {
+    string public network = "sepolia";
+
     function setUp() public {}
 
     function run() public {
+        vm.createSelectFork(network);
         vm.startBroadcast();
 
         new L1Resolver{salt: 0}(
             vm.envString("L1_RESOLVER_URL"),
-            vm.envAddress("L1_RESOLVER_SIGNER")
+            vm.envAddress("L1_RESOLVER_SIGNER"),
+            vm.envAddress("L1_RESOLVER_OWNER")
         );
 
         vm.stopBroadcast();

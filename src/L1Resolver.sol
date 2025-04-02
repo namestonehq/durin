@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {BytesUtils} from "@ensdomains/ens-contracts/utils/BytesUtils.sol";
 import {ENS} from "@ensdomains/ens-contracts/registry/ENS.sol";
 import {IExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IExtendedResolver.sol";
-import {strings} from "@arachnid/string-utils/strings.sol";
 import {NameEncoder} from "@ensdomains/ens-contracts/utils/NameEncoder.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {strings} from "@arachnid/string-utils/strings.sol";
 
-import {SignatureVerifier} from "./lib/SignatureVerifier.sol";
 import {ENSDNSUtils} from "./lib/ENSDNSUtils.sol";
+import {SignatureVerifier} from "./lib/SignatureVerifier.sol";
 
 interface IResolverService {
     function stuffedResolveCall(
@@ -32,7 +32,7 @@ interface INameWrapper {
 
 /// @notice Implements an ENS resolver that directs all queries to a CCIP read gateway.
 /// @dev Callers must implement EIP 3668 and ENSIP 10. Only supports 2LDs.
-contract L1Resolver is IExtendedResolver {
+contract L1Resolver is IExtendedResolver, Ownable {
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -53,17 +53,16 @@ contract L1Resolver is IExtendedResolver {
     //////////////////////////////////////////////////////////////*/
 
     string public url;
+    address public signer;
     INameWrapper public immutable nameWrapper;
 
-    mapping(address => bool) public signers;
     mapping(bytes32 node => L2Registry l2Registry) public l2Registry;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event SignerAdded(address signer);
-    event SignerRemoved(address signer);
+    event SignerChanged(address signer);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -81,24 +80,17 @@ contract L1Resolver is IExtendedResolver {
     );
 
     /*//////////////////////////////////////////////////////////////
-                               MODIFIERS
-    //////////////////////////////////////////////////////////////*/
-
-    modifier onlySigners() {
-        if (!signers[msg.sender]) {
-            revert Unauthorized();
-        }
-        _;
-    }
-
-    /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor(string memory _url, address _signer) {
+    constructor(
+        string memory _url,
+        address _signer,
+        address _owner
+    ) Ownable(_owner) {
         url = _url;
-        signers[_signer] = true;
-        emit SignerAdded(_signer);
+        signer = _signer;
+        emit SignerChanged(_signer);
 
         // Get the NameWrapper address from namewrapper.eth
         // This allows us to have the same deploy bytecode on mainnet and sepolia
@@ -112,6 +104,7 @@ contract L1Resolver is IExtendedResolver {
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Specify the L2 registry for a given name. Should only be used with 2LDs, e.g. "nick.eth".
     function setL2Registry(
         bytes32 node,
         uint64 targetChainId,
@@ -128,21 +121,6 @@ contract L1Resolver is IExtendedResolver {
         }
 
         l2Registry[node] = L2Registry(targetChainId, targetRegistryAddress);
-    }
-
-    function makeSignatureHash(
-        address target,
-        uint64 expires,
-        bytes memory request,
-        bytes memory result
-    ) external pure returns (bytes32) {
-        return
-            SignatureVerifier.makeSignatureHash(
-                target,
-                expires,
-                request,
-                result
-            );
     }
 
     /// @notice Resolves a name, as specified by ENSIP 10.
@@ -189,12 +167,12 @@ contract L1Resolver is IExtendedResolver {
         bytes calldata response,
         bytes calldata extraData
     ) external view returns (bytes memory) {
-        (address signer, bytes memory result) = SignatureVerifier.verify(
+        (address _signer, bytes memory result) = SignatureVerifier.verify(
             extraData,
             response
         );
 
-        if (!signers[signer]) {
+        if (_signer != signer) {
             revert InvalidSignature();
         }
 
@@ -211,20 +189,15 @@ contract L1Resolver is IExtendedResolver {
                             ADMIN FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Sets the URL for the resolver service. Only callable by the signers.
-    function setURL(string calldata _url) external onlySigners {
+    /// @notice Sets the URL for the resolver service.
+    function setURL(string calldata _url) external onlyOwner {
         url = _url;
     }
 
-    /// @notice Sets the signers for the resolver service. Only callable by the signers.
-    function addSigner(address _signer) external onlySigners {
-        signers[_signer] = true;
-        emit SignerAdded(_signer);
-    }
-
-    function removeSigner(address _signer) external onlySigners {
-        signers[_signer] = false;
-        emit SignerRemoved(_signer);
+    /// @notice Sets the signers for the resolver service.
+    function setSigner(address _signer) external onlyOwner {
+        signer = _signer;
+        emit SignerChanged(_signer);
     }
 
     /*//////////////////////////////////////////////////////////////

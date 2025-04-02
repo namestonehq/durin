@@ -53,7 +53,7 @@ Durin uses [foundry](https://github.com/foundry-rs/foundry), to install follow t
 ### 4. Prepare .env
 
 ```shell
-cp example.env .env
+cp .env.example .env
 ```
 
 ```env
@@ -121,7 +121,7 @@ This repo includes the L2 contracts required to enable subname issuance.
 
 ## Deploying Durin
 
-1. Create a `.env` file via `cp example.env .env`. You don't need to change anything.
+1. Create a `.env` file via `cp .env.example .env`. You don't need to change anything.
 2. In [DeployL2Contracts.s.sol](./scripts/DeployL2Contracts.s.sol), make sure the chains you want to deploy to are uncommented.
 3. Run `./deploy/DeployDurin.sh` to deploy the registry implementation and factory contracts to the specified chains.
 4. Run `./deploy/VerifyL2RegistryImplementation.sh` and `./deploy/VerifyL2RegistryFactory.sh` a bunch of times, changing `NETWORK` and `BLOCK_EXPLORER_API_KEY` in the files, to verify all the contracts you just deployed. Unfortunately forge's verification is flaky for multi-chain deployments.

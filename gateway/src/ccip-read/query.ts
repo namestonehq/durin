@@ -13,10 +13,11 @@ const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY
 const clients = supportedChains.map((chain) =>
   createPublicClient({
     chain,
+    cacheTime: 10_000,
+    batch: { multicall: true },
     transport: http(
       ALCHEMY_API_KEY ? alchemy(chain.id, ALCHEMY_API_KEY) : undefined
     ),
-    cacheTime: 10_000,
   })
 )
 
