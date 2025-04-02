@@ -1,4 +1,4 @@
-import { type AlchemyChain, alchemy } from 'evm-providers'
+import { alchemy } from 'evm-providers'
 import { type Hex, createPublicClient, http } from 'viem'
 import {
   arbitrum,
@@ -50,9 +50,7 @@ const clients = supportedChains.map((chain) =>
     cacheTime: 10_000,
     batch: { multicall: true },
     transport: http(
-      ALCHEMY_API_KEY
-        ? alchemy(chain.id as AlchemyChain, ALCHEMY_API_KEY)
-        : undefined
+      ALCHEMY_API_KEY ? alchemy(chain.id, ALCHEMY_API_KEY) : undefined
     ),
   })
 )

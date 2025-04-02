@@ -4,7 +4,7 @@
     "": {
       "name": "gateway",
       "dependencies": {
-        "evm-providers": "^0.5.5",
+        "evm-providers": "^0.5.6",
         "viem": "^2.21.3",
         "zod": "^3.21.4",
       },
@@ -73,7 +73,7 @@
 
     "eventemitter3": ["eventemitter3@5.0.1", "", {}, "sha512-GWkBvjiSZK87ELrYOSESUYeVIc9mvLLf/nXalMOS5dYrgZq9o5OVkbZAVM06CVxYsCwH9BDZFPlQTlPA1j4ahA=="],
 
-    "evm-providers": ["evm-providers@0.5.5", "", {}, "sha512-56y3iuklKHbvhnQVKRGf7XDjjhpl2jdSMS8F47rxDHBMxvhyKjJoqJ+TjFz0vhdTVPg57UZnAzkkKy8RdiOywQ=="],
+    "evm-providers": ["evm-providers@0.5.6", "", {}, "sha512-SpMxCQ9AD+Fg6aOELEGgjNE2evvvbQKrQEAY/LmxPwf5JE0gA05wGJG5vKzm90dPVNZzYB3ju9c44N7ZRbk5nw=="],
 
     "globals": ["globals@11.12.0", "", {}, "sha512-WOBp/EEGUiIsJSp7wcv/y6MO+lV9UoncWqxuFfm8eBwzWNgyfBd6Gz+IeKQ9jCmyhoH99g15M3T+QaVHFjizVA=="],
 
