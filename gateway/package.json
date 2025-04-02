@@ -13,6 +13,7 @@
     "prettier": "3.5.3"
   },
   "dependencies": {
+    "evm-providers": "^0.5.5",
     "viem": "^2.21.3",
     "zod": "^3.21.4"
   },

@@ -1,19 +1,21 @@
+import { alchemy } from 'evm-providers'
 import { type Hex, createPublicClient, http } from 'viem'
 import { base, baseSepolia } from 'viem/chains'
 import { decodeFunctionData } from 'viem/utils'
 
 import { dnsDecodeName, resolverAbi } from './utils'
 
-const supportedChains = [
-  { ...base, rpcUrl: 'https://base.drpc.org' },
-  { ...baseSepolia, rpcUrl: 'https://base-sepolia.drpc.org' },
-]
+const supportedChains = [base, baseSepolia]
+
+const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY
 
 // Create clients outside of the function lets us take advantage of Viem's native caching
 const clients = supportedChains.map((chain) =>
   createPublicClient({
     chain,
-    transport: http(chain.rpcUrl),
+    transport: http(
+      ALCHEMY_API_KEY ? alchemy(chain.id, ALCHEMY_API_KEY) : undefined
+    ),
     cacheTime: 10_000,
   })
 )
