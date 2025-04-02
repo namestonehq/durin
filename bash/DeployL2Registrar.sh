@@ -1,10 +1,8 @@
 #!/bin/bash
-
-# Load environment variables
 source .env
 
 # Check if required variables are set
-if [ -z "$ETHERSCAN_API_KEY" ] || [ -z "$RPC_URL" ] || [ -z "$REGISTRY_ADDRESS" ]; then
+if [ -z "$ETHERSCAN_API_KEY" ] || [ -z "$L2_REGISTRY_ADDRESS" ] || [ -z "$L2_RPC_URL" ]; then
     echo "Error: Missing required environment variables. Please check your .env file."
     exit 1
 fi
@@ -19,15 +17,12 @@ forge build
 
 # Deploy the contract
 echo "Deploying $CONTRACT_NAME from $CONTRACT_FILE..."
-DEPLOYED_OUTPUT=$(ETHERSCAN_API_KEY=$ETHERSCAN_API_KEY forge create \
-    --rpc-url $RPC_URL \
-    --verify \
-    --legacy \
-    --interactive \
+forge create \
+    --rpc-url "${L2_RPC_URL}" \
     --broadcast \
+    --verify \
+    --etherscan-api-key "$ETHERSCAN_API_KEY" \
+    --interactive \
     $CONTRACT_FILE:$CONTRACT_NAME \
-    --constructor-args $REGISTRY_ADDRESS \
-   
-    --json)
+    --constructor-args "$L2_REGISTRY_ADDRESS"
 
-echo "$DEPLOYED_OUTPUT"

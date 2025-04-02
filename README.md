@@ -5,112 +5,87 @@ Durin is an opinionated approach to ENS L2 subnames. Durin consists of:
 1. Registry factory on [supported chains](#active-registry-factory-deployments)
 2. Registrar template
 3. Gateway server
+4. L1 resolver
 
-# Instructions To Deploy L2 ENS Subnames
+## Instructions To Deploy L2 ENS Subnames
 
 This repo is meant to be used in conjuction with [Durin.dev](https://durin.dev/), which provides a frontend for deploying the registry & enabling name resolution.
 
-### 1. Deploy Instance of Registry
+### 1. Deploy a Registry
 
-Go to [Durin.dev](https://durin.dev/). Choose Sepolia or Mainnet ENS name resolution. Pick a supported L2 -- either mainnet or sepolia. Deploy.
+Go to [Durin.dev](https://durin.dev/). Choose Sepolia or Mainnet ENS name resolution. Pick a supported L2. Deploy.
 
-Once complete note the deployed registry address on the L2.
+Once complete, note the deployed L2 registry address.
 
-## 2. Enable Name Resolution
+### 2. Enable Name Resolution
 
-To enable name resolution, change the resolver on the ENS name.
+To connect your newly deployed L2 registry with your ENS name on L1, change the name's resolver to `0x0bc45886470e9256dccd48e90d706630db5228ed` and call `setL2Registry()` with the L2 registry's address and chain ID.
 
-```
-sepolia: 0x00f9314C69c3e7C37b3C7aD36EF9FB40d94eDDe1
-mainnet: 0x2A6C785b002Ad859a3BAED69211167C7e998aAeC
-```
+Both of these steps can be done via [durin.dev](https://durin.dev) or the [ENS manager app](http://app.ens.domains).
 
-After switching the resolver, add the following text record:
+### 3. Customize the Registrar Template
 
-```
-key: registry
-value: {chain_id}:{registry_contract}
-```
+> [!NOTE]  
+> Durin uses [Foundry](https://github.com/foundry-rs/foundry). To install it, follow the [instructions](https://book.getfoundry.sh/getting-started/installation).
 
-Both switching the resolver and adding the text record can be done via durin.dev or the ENS manager app.
+Durin provides a registrar template that is meant to be customized. Common customizations include adding pricing, implementing allow lists, and enabling token gating.
 
-### 3. Customize Registrar Template
+You can either clone this repo and modify [L2Registrar.sol](./src/examples/L2Registrar.sol) directly, or write a new contract in your existing project. If you prefer the latter, simply import [IL2Registry.sol](./src/interfaces/IL2Registry.sol) to your project so you can interact with the registry you deployed earlier and skip to step 5.
 
-Durin provides a registrar template designed for customization. Common customizations include adding pricing, implementing allow lists, and enabling token gating.
-
-To get started
-clone this repo:
+To get started, clone this repo:
 
 ```shell
 git clone git@github.com:resolverworks/durin.git
 cd durin
 ```
 
-Once cloned modify [L2Registrar.sol](https://github.com/resolverworks/durin/blob/main/src/examples/L2Registrar.sol) as need it.
+Once cloned, modify [L2Registrar.sol](./src/examples/L2Registrar.sol) as needed.
 
-Durin uses [foundry](https://github.com/foundry-rs/foundry), to install follow the [instructions](https://book.getfoundry.sh/getting-started/installation).
+### 4. Deploy L2Registrar Contract
 
-### 4. Prepare .env
+To deploy the L2Registrar contract, you will need to prepare a `.env` file and run the deploy script.
 
 ```shell
 cp .env.example .env
 ```
 
-```env
-# Required: RPC URL for the chain where the registry is deployed
-RPC_URL=
-
-# Required: Etherscan API key for contract verification
-ETHERSCAN_API_KEY=
-
-# Required for L2Registrar contract deployment
-REGISTRY_ADDRESS=
-
-# Required to configure the deployed registry from durin.dev website. Add this after deploying the Registrar.
-REGISTRAR_ADDRESS=Blank until step 5
-```
-
-### 5. Deploy L2Registrar Contract
+Open the new `.env` file and set the variables that are marked as required at the top, then run the following command:
 
 ```shell
-bash deploy/deployL2Registrar.sh
+bash ./bash/DeployL2Registrar.sh
 ```
 
-Required: Private key of the deployer exclude "0x" (Same as used on durin.dev)
+### 5. Connect Registrar to L2Registry
 
-**Update Registrar address in .env**
+Only approved Registrars can call `createSubnode()` on the Registry. The owner of the registry can add as many Registrars as they want.
 
-### 6. Connect Registrar to L2Registry
+To add a Registrar, visit your Registry on Etherscan and call `addRegistrar()` with the newly deployed Registrar's address.
 
-Only the Registrar can call `register()` on the Registry. The owner of the registry can add a registrar thus enabling minting. The [configureRegistry.sh](https://github.com/resolverworks/durin/blob/main/deploy/configureRegistry.sh) script adds the Registrar to the Registry by calling the `addRegistrar()`
-
-```shell
-bash deploy/configureRegistry.sh
-```
+Finally, you'll be able to mint subnames via the Registrar.
 
 ## Contracts
 
-This repo includes the L2 contracts required to enable subname issuance.
+This repo includes all of the smart contract (L1 and L2) required to enable subname issuance.
 
+- [L1Resolver](./src/L1Resolver.sol): L1 contract that forwards ENS queries to the L2.
 - [L2RegistryFactory](./src/L2RegistryFactory.sol): L2 contract for creating new registries.
-- [L2Registry](./src/L2Registry.sol): L2 contract that stores subnames as ERC721 NFTs.
-  It's responsible for storing subname data like address and text records.
+- [L2Registry](./src/L2Registry.sol): L2 contract that stores subnames as ERC721 NFTs. This contract is also responsible for storing data like address and text records.
 - [L2Registrar](./src/examples/L2Registrar.sol): An example registrar contract that can mint subnames. This is meant to be customized.
 
 ## Active Registry Factory Deployments
 
 | L2               | Registry Factory                                                                                                                         |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Base             | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://basescan.org/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)                  |
-| Base Sepolia     | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://sepolia.basescan.org/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)          |
-| Optimism         | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://optimistic.etherscan.io/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)       |
-| Optimism Sepolia | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://sepolia-optimism.etherscan.io/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5) |
-| Scroll           | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://scrollscan.com/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)                |
-| Scroll Sepolia   | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://sepolia-blockscout.scroll.io/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)  |
-| Arbitrum         | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://arbiscan.io/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)                   |
-| Arbitrum Sepolia | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://sepolia.arbiscan.io/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)           |
-| Linea            | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://lineascan.build/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)               |
-| Linea Sepolia    | [`0xDddDDDDDdBA62106E352020a520945f70b8bDce5`](https://sepolia.lineascan.build/address/0xDddDDDDDdBA62106E352020a520945f70b8bDce5)       |
+| Base             | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://basescan.org/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)                  |
+| Base Sepolia     | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://sepolia.basescan.org/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)          |
+| Optimism         | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://optimistic.etherscan.io/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)       |
+| Optimism Sepolia | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://sepolia-optimism.etherscan.io/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19) |
+| Scroll           | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://scrollscan.com/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)                |
+| Scroll Sepolia   | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://sepolia-blockscout.scroll.io/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)  |
+| Arbitrum         | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://arbiscan.io/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)                   |
+| Arbitrum Sepolia | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://sepolia.arbiscan.io/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)           |
+| Linea            | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://lineascan.build/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)               |
+| Linea Sepolia    | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://sepolia.lineascan.build/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)       |
 
 ## Architecture
 
@@ -119,7 +94,7 @@ This repo includes the L2 contracts required to enable subname issuance.
 > [!NOTE]  
 > A dependency for supporting `-withSignature` methods on new chains is a deployment of UniversalSigValidator to `0x164af34fAF9879394370C7f09064127C043A35E9`. The deployment is permissionless and can be found [here](https://github.com/ensdomains/ens-contracts/blob/8c414e4c41dce49c49efd0bf82c10a145cdc8f0a/deploy/utils/00_deploy_universal_sig_validator.ts).
 
-# Deploying Durin
+## Deploying Durin
 
 > [!NOTE]  
 > Developers that want to issue subnames on one of the chains listed above in the [Active Registry Factory Deployments](#active-registry-factory-deployments) section do not need to read any further.
