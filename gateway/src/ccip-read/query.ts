@@ -1,11 +1,33 @@
-import { alchemy } from 'evm-providers'
+import { type AlchemyChain, alchemy } from 'evm-providers'
 import { type Hex, createPublicClient, http } from 'viem'
-import { base, baseSepolia } from 'viem/chains'
+import {
+  arbitrum,
+  arbitrumSepolia,
+  base,
+  baseSepolia,
+  linea,
+  lineaSepolia,
+  optimism,
+  optimismSepolia,
+  scroll,
+  scrollSepolia,
+} from 'viem/chains'
 import { decodeFunctionData } from 'viem/utils'
 
 import { dnsDecodeName, resolverAbi } from './utils'
 
-const supportedChains = [base, baseSepolia]
+const supportedChains = [
+  base,
+  baseSepolia,
+  optimism,
+  optimismSepolia,
+  arbitrum,
+  arbitrumSepolia,
+  linea,
+  lineaSepolia,
+  scroll,
+  scrollSepolia,
+]
 
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY
 
@@ -16,7 +38,9 @@ const clients = supportedChains.map((chain) =>
     cacheTime: 10_000,
     batch: { multicall: true },
     transport: http(
-      ALCHEMY_API_KEY ? alchemy(chain.id, ALCHEMY_API_KEY) : undefined
+      ALCHEMY_API_KEY
+        ? alchemy(chain.id as AlchemyChain, ALCHEMY_API_KEY)
+        : undefined
     ),
   })
 )
