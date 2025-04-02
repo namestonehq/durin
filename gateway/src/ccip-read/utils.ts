@@ -2,9 +2,8 @@ import { type ByteArray, type Hex } from 'viem'
 import { bytesToString, parseAbi, toBytes } from 'viem/utils'
 
 export const resolverAbi = parseAbi([
-  'function resolve(bytes calldata name, bytes calldata data) view returns(bytes memory result, uint64 expires, bytes memory sig)',
   'function stuffedResolveCall(bytes calldata name, bytes calldata data, uint64 targetChainId, address targetRegistryAddress) view returns (bytes memory)',
-  'function resolveWithProof(bytes calldata response, bytes calldata extraData) view returns(bytes memory)',
+  'function resolve(bytes name, bytes data) view returns (bytes memory)',
   'function addr(bytes32 node) view returns (address)',
   'function addr(bytes32 node, uint256 coinType) view returns (bytes memory)',
   'function text(bytes32 node, string key) view returns (string memory)',

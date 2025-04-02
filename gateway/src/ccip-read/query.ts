@@ -1,13 +1,6 @@
-import {
-  type AbiItem,
-  type Hex,
-  createPublicClient,
-  http,
-  labelhash,
-  parseAbi,
-} from 'viem'
+import { type Hex, createPublicClient, http } from 'viem'
 import { base, baseSepolia } from 'viem/chains'
-import { decodeFunctionData, encodeFunctionResult } from 'viem/utils'
+import { decodeFunctionData } from 'viem/utils'
 
 import { dnsDecodeName, resolverAbi } from './utils'
 
@@ -15,6 +8,15 @@ const supportedChains = [
   { ...base, rpcUrl: 'https://base.drpc.org' },
   { ...baseSepolia, rpcUrl: 'https://base-sepolia.drpc.org' },
 ]
+
+// Create clients outside of the function lets us take advantage of Viem's native caching
+const clients = supportedChains.map((chain) =>
+  createPublicClient({
+    chain,
+    transport: http(chain.rpcUrl),
+    cacheTime: 10_000,
+  })
+)
 
 type HandleQueryArgs = {
   dnsEncodedName: Hex
@@ -37,47 +39,30 @@ export async function handleQuery({
     data: encodedResolveCall,
   })
 
-  const l2Chain = supportedChains.find(
-    (chain) => chain.id === Number(targetChainId)
-  )
-
-  if (!l2Chain) {
-    throw new Error(`Unsupported chain ${targetChainId}`)
-  }
-
-  const l2Client = createPublicClient({
-    chain: l2Chain,
-    transport: http(l2Chain.rpcUrl),
-  })
-
-  // We need to find the correct ABI item for each function, otherwise `addr(node)` and `addr(node, coinType)` causes issues
-  const abiItem: AbiItem | undefined = resolverAbi.find(
-    (abi) => abi.name === functionName && abi.inputs.length === args.length
-  )
-
-  // We can just pass through the call to our L2 resolver because it shares the same interface
-  const res = (await l2Client.readContract({
-    address: targetRegistryAddress,
-    abi: [abiItem],
-    functionName,
-    args,
-  })) as string
-
   console.log({
     targetChainId,
     targetRegistryAddress,
     name,
     functionName,
     args,
-    res,
   })
 
-  return {
-    ttl: 1000,
-    result: encodeFunctionResult({
-      abi: [abiItem],
-      functionName: functionName,
-      result: res,
-    }),
+  const l2Chain = supportedChains.find(
+    (chain) => chain.id === Number(targetChainId)
+  )
+
+  const l2Client = clients.find((client) => client.chain.id === l2Chain?.id)
+
+  if (!l2Chain || !l2Client) {
+    console.error(`Unsupported chain ${targetChainId}`)
+    return '0x' as const
   }
+
+  // We can just pass through the call to our L2 resolver because it shares the same interface
+  return l2Client.readContract({
+    address: targetRegistryAddress,
+    abi: [resolverAbi[1]],
+    functionName: 'resolve',
+    args: [dnsEncodedName, encodedResolveCall],
+  })
 }

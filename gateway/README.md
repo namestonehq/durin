@@ -1,6 +1,6 @@
-# CCIP Read Gateway
+# Durin Gateway
 
-[CCIP Read](https://eips.ethereum.org/EIPS/eip-3668) provides a mechanism to allow a smart contract to fetch external data. This example is built specifically for the contracts in this monorepo.
+Simple HTTP server that implements [CCIP Read](https://eips.ethereum.org/EIPS/eip-3668). This specific gateway forwards ENS resolution requests from L1 to L2.
 
 ## Run Locally
 

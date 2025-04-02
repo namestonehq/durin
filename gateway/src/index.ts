@@ -1,10 +1,23 @@
 import { getCcipRead } from './handlers/getCcipRead'
 
+const port = process.env.PORT ? parseInt(process.env.PORT) : 3000
+console.log(`Listening on port ${port}`)
+
 Bun.serve({
-  port: 3000,
+  port,
   routes: {
     '/v1/:sender/:data': {
-      GET: (req) => getCcipRead(req),
+      GET: async (req) => {
+        const res = await getCcipRead(req)
+
+        return Response.json(await res.json(), {
+          status: res.status,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          },
+        })
+      },
     },
   },
   fetch() {
