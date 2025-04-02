@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+// ***********************************************
+// ▗▖  ▗▖ ▗▄▖ ▗▖  ▗▖▗▄▄▄▖ ▗▄▄▖▗▄▄▄▖▗▄▖ ▗▖  ▗▖▗▄▄▄▖
+// ▐▛▚▖▐▌▐▌ ▐▌▐▛▚▞▜▌▐▌   ▐▌     █ ▐▌ ▐▌▐▛▚▖▐▌▐▌
+// ▐▌ ▝▜▌▐▛▀▜▌▐▌  ▐▌▐▛▀▀▘ ▝▀▚▖  █ ▐▌ ▐▌▐▌ ▝▜▌▐▛▀▀▘
+// ▐▌  ▐▌▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖▗▄▄▞▘  █ ▝▚▄▞▘▐▌  ▐▌▐▙▄▄▖
+// ***********************************************
+
 import {ENS} from "@ensdomains/ens-contracts/registry/ENS.sol";
 import {IExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IExtendedResolver.sol";
 import {NameEncoder} from "@ensdomains/ens-contracts/utils/NameEncoder.sol";
@@ -30,8 +37,9 @@ interface INameWrapper {
     function ownerOf(uint256 id) external view returns (address owner);
 }
 
-/// @notice Implements an ENS resolver that directs all queries to a CCIP read gateway.
-/// @dev Callers must implement EIP 3668 and ENSIP 10. Only supports 2LDs.
+/// @author NameStone
+/// @notice ENS resolver that directs all queries to a CCIP Read gateway.
+/// @dev Callers must implement EIP-3668 and ENSIP-10.
 contract L1Resolver is IExtendedResolver, Ownable {
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS

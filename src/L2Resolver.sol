@@ -8,17 +8,18 @@ pragma solidity ^0.8.20;
 // ▐▌  ▐▌▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖▗▄▄▞▘  █ ▝▚▄▞▘▐▌  ▐▌▐▙▄▄▖
 // ***********************************************
 
-import {Multicallable} from "@ensdomains/ens-contracts/resolvers/Multicallable.sol";
 import {ABIResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ABIResolver.sol";
 import {AddrResolver} from "@ensdomains/ens-contracts/resolvers/profiles/AddrResolver.sol";
 import {ContentHashResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ContentHashResolver.sol";
-import {TextResolver} from "@ensdomains/ens-contracts/resolvers/profiles/TextResolver.sol";
 import {ExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ExtendedResolver.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {Multicallable} from "@ensdomains/ens-contracts/resolvers/Multicallable.sol";
+import {TextResolver} from "@ensdomains/ens-contracts/resolvers/profiles/TextResolver.sol";
 
-import {L2Registry} from "./L2Registry.sol";
 import {IUniversalSignatureValidator} from "./interfaces/IUniversalSignatureValidator.sol";
+import {L2Registry} from "./L2Registry.sol";
 
+/// @title Durin Resolver
 /// @author NameStone
 /// @notice Resolver to store standard ENS records
 /// @dev This contract is inherited by L2Registry, making registry methods available via `address(this)`

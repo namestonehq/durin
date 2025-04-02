@@ -8,8 +8,8 @@ pragma solidity ^0.8.20;
 // ▐▌  ▐▌▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖▗▄▄▞▘  █ ▝▚▄▞▘▐▌  ▐▌▐▙▄▄▖
 // ***********************************************
 
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {NameEncoder} from "@ensdomains/ens-contracts/utils/NameEncoder.sol";
 
 import {L2Resolver} from "./L2Resolver.sol";
@@ -18,7 +18,7 @@ import {L2Resolver} from "./L2Resolver.sol";
 /// @author NameStone
 /// @notice Manages ENS subname registration and management on L2
 /// @dev Combined Registry, BaseRegistrar and PublicResolver from the official .eth contracts
-contract L2Registry is L2Resolver, Initializable, ERC721 {
+contract L2Registry is ERC721, Initializable, L2Resolver {
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
@@ -173,7 +173,7 @@ contract L2Registry is L2Resolver, Initializable, ERC721 {
         return keccak256(abi.encodePacked(node, labelhash));
     }
 
-    /// @notice The name of the NFT collection and base ENS name.
+    /// @notice The name of the NFT collection and base ENS name
     function name() public view override returns (string memory) {
         return _tokenName;
     }
