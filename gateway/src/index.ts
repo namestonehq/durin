@@ -6,6 +6,11 @@ console.log(`Listening on port ${port}`)
 Bun.serve({
   port,
   routes: {
+    '/health': {
+      GET: async () => {
+        return Response.json({ status: 'ok' })
+      },
+    },
     '/v1/:sender/:data': {
       GET: async (req) => {
         const res = await getCcipRead(req)
