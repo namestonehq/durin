@@ -19,7 +19,6 @@ forge build
 echo "Deploying $CONTRACT_NAME from $CONTRACT_FILE..."
 forge create \
     --rpc-url "${L2_RPC_URL}" \
-    --broadcast \
     --verify \
     --etherscan-api-key "$ETHERSCAN_API_KEY" \
     --interactive \
