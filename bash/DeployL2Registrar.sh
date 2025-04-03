@@ -22,6 +22,7 @@ forge create \
     --verify \
     --etherscan-api-key "$ETHERSCAN_API_KEY" \
     --interactive \
+    --broadcast \
     $CONTRACT_FILE:$CONTRACT_NAME \
     --constructor-args "$L2_REGISTRY_ADDRESS"
 
