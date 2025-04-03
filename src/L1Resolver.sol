@@ -70,6 +70,12 @@ contract L1Resolver is IExtendedResolver, Ownable {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
+    event L2RegistrySet(
+        bytes32 node,
+        uint64 targetChainId,
+        address targetRegistryAddress
+    );
+    event GatewayChanged(string url);
     event SignerChanged(address signer);
 
     /*//////////////////////////////////////////////////////////////
@@ -97,6 +103,7 @@ contract L1Resolver is IExtendedResolver, Ownable {
         address _owner
     ) Ownable(_owner) {
         url = _url;
+        emit GatewayChanged(_url);
         signer = _signer;
         emit SignerChanged(_signer);
 
@@ -129,6 +136,7 @@ contract L1Resolver is IExtendedResolver, Ownable {
         }
 
         l2Registry[node] = L2Registry(targetChainId, targetRegistryAddress);
+        emit L2RegistrySet(node, targetChainId, targetRegistryAddress);
     }
 
     /// @notice Resolves a name, as specified by ENSIP 10.
@@ -200,6 +208,7 @@ contract L1Resolver is IExtendedResolver, Ownable {
     /// @notice Sets the URL for the resolver service.
     function setURL(string calldata _url) external onlyOwner {
         url = _url;
+        emit GatewayChanged(_url);
     }
 
     /// @notice Sets the signers for the resolver service.
