@@ -3,6 +3,8 @@ pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 
 import {L2Registry} from "src/L2Registry.sol";
 import {L2RegistryFactory} from "src/L2RegistryFactory.sol";
@@ -23,6 +25,8 @@ contract L2RegistryTest is Test {
     uint256 public privateKey1;
     address public user2;
     uint256 public privateKey2;
+
+    event BaseURIUpdated(string baseURI);
 
     function setUp() public {
         vm.startPrank(admin);
@@ -455,5 +459,31 @@ contract L2RegistryTest is Test {
     function test_ImplementationAddressNotNull() public view {
         address implAddr = factory.registryImplementation();
         assertTrue(implAddr != address(0));
+    }
+
+    function test_TokenMetadata() public {
+        // namehash("testname.eth")
+        bytes32 testNameNode = 0x9709c900112b2537a4268551c6a89092af6ce2e45a001af4e8dc5d800c4eae25;
+        string memory tokenIdString = Strings.toString(uint256(testNameNode));
+
+        string memory metadata = string.concat(
+            "data:application/json;base64,",
+            Base64.encode(bytes('{"name": "testname.eth"}'))
+        );
+
+        // Should be an onchain SVG because we deployed the registry with no baseURI
+        assertEq(registry.tokenURI(uint256(testNameNode)), metadata);
+
+        string memory baseURI = "https://example.com/";
+
+        vm.expectEmit();
+        emit BaseURIUpdated(baseURI);
+        vm.prank(admin);
+        registry.setBaseURI(baseURI);
+
+        assertEq(
+            registry.tokenURI(uint256(testNameNode)),
+            string(abi.encodePacked(baseURI, tokenIdString))
+        );
     }
 }

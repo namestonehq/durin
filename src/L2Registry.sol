@@ -8,10 +8,12 @@ pragma solidity ^0.8.20;
 // ▐▌  ▐▌▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖▗▄▄▞▘  █ ▝▚▄▞▘▐▌  ▐▌▐▙▄▄▖
 // ***********************************************
 
+import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {NameEncoder} from "@ensdomains/ens-contracts/utils/NameEncoder.sol";
 
+import {ENSDNSUtils} from "./lib/ENSDNSUtils.sol";
 import {L2Resolver} from "./L2Resolver.sol";
 
 /// @title Durin Registry
@@ -190,7 +192,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     }
 
     /// @notice The base URI for NFT metadata
-    function _baseURI() internal view virtual override returns (string memory) {
+    function _baseURI() internal view override returns (string memory) {
         return _tokenBaseURI;
     }
 
@@ -244,8 +246,31 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     }
 
     /*//////////////////////////////////////////////////////////////
-                           REQUIRED OVERRIDES
+                               OVERRIDES
     //////////////////////////////////////////////////////////////*/
+
+    /// @dev Returns onchain JSON if no baseURI is set
+    function tokenURI(
+        uint256 tokenId
+    ) public view override returns (string memory) {
+        if (bytes(_tokenBaseURI).length == 0) {
+            _requireOwned(tokenId);
+
+            string memory json = string.concat(
+                '{"name": "',
+                ENSDNSUtils.dnsDecode(names[bytes32(tokenId)]),
+                '"}'
+            );
+
+            return
+                string.concat(
+                    "data:application/json;base64,",
+                    Base64.encode(bytes(json))
+                );
+        }
+
+        return super.tokenURI(tokenId);
+    }
 
     function supportsInterface(
         bytes4 interfaceId
