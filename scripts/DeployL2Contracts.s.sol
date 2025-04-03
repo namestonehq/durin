@@ -27,17 +27,23 @@ contract DeployL2Contracts is Script {
     function setUp() public {}
 
     function run() public {
-        string[] memory networks = new string[](10);
+        string[] memory networks = new string[](100);
         networks[0] = "base-sepolia";
         networks[1] = "arbitrum-sepolia";
         networks[2] = "optimism-sepolia";
         networks[3] = "scroll-sepolia";
         networks[4] = "linea-sepolia";
-        // networks[5] = "base";
-        // networks[6] = "arbitrum";
-        // networks[7] = "optimism";
-        // networks[8] = "scroll";
-        // networks[9] = "linea";
+        networks[5] = "celo-alfajores";
+        networks[6] = "polygon-amoy";
+        networks[7] = "worldchain-sepolia";
+        // networks[8] = "base";
+        // networks[9] = "arbitrum";
+        // networks[10] = "optimism";
+        // networks[11] = "scroll";
+        // networks[12] = "linea";
+        // networks[13] = "celo";
+        // networks[14] = "polygon";
+        // networks[15] = "worldchain";
 
         for (uint256 i = 0; i < networks.length; i++) {
             if (keccak256(bytes(networks[i])) == keccak256(bytes(""))) {
