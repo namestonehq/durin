@@ -76,6 +76,15 @@ export async function handleQuery({
     data: encodedResolveCall,
   })
 
+  const l2Client = clients.find(
+    (client) => BigInt(client.chain.id) === targetChainId
+  )
+
+  if (!l2Client) {
+    console.error(`Unsupported chain ${targetChainId} for ${name}`)
+    return '0x' as const
+  }
+
   console.log({
     targetChainId,
     targetRegistryAddress,
@@ -83,17 +92,6 @@ export async function handleQuery({
     functionName,
     args,
   })
-
-  const l2Chain = supportedChains.find(
-    (chain) => chain.id === Number(targetChainId)
-  )
-
-  const l2Client = clients.find((client) => client.chain.id === l2Chain?.id)
-
-  if (!l2Chain || !l2Client) {
-    console.error(`Unsupported chain ${targetChainId}`)
-    return '0x' as const
-  }
 
   // We can just pass through the call to our L2 resolver because it shares the same interface
   return l2Client.readContract({

@@ -34,6 +34,12 @@ scroll = "https://scroll-rpc.publicnode.com"
 scroll-sepolia = "https://scroll-sepolia-rpc.publicnode.com"
 linea = "https://linea-rpc.publicnode.com"
 linea-sepolia = "https://linea-sepolia-rpc.publicnode.com"
+celo = "https://celo-rpc.publicnode.com"
+celo-alfajores = "https://celo-alfajores.drpc.org"
+polygon = "https://polygon-bor-rpc.publicnode.com"
+polygon-amoy = "https://polygon-amoy-bor-rpc.publicnode.com"
+worldchain = "https://worldchain.drpc.org"
+worldchain-sepolia = "https://worldchain-sepolia.drpc.org"
 
 [fuzz]
 # The amount of fuzz runs to perform for each fuzz test case. 
