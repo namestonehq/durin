@@ -84,7 +84,6 @@ contract L2Registrar {
     function _labelToNode(
         string calldata label
     ) private view returns (bytes32) {
-        bytes32 labelhash = keccak256(bytes(label));
-        return registry.makeNode(registry.baseNode(), labelhash);
+        return registry.makeNode(registry.baseNode(), label);
     }
 }

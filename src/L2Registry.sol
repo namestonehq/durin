@@ -141,8 +141,8 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         address _owner,
         bytes[] calldata data
     ) external onlyOwnerOrRegistrar(node) returns (bytes32) {
-        bytes32 labelhash = keccak256(abi.encodePacked(label));
-        bytes32 subnode = makeNode(node, labelhash);
+        bytes32 subnode = makeNode(node, label);
+        bytes32 labelhash = keccak256(bytes(label));
         bytes memory dnsEncodedName = _addLabel(label, names[node]);
 
         if (owner(subnode) != address(0)) {
@@ -159,6 +159,33 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         return subnode;
     }
 
+    /// @notice Helper to derive a node from a name
+    /// @dev In practice, this should be performed offchain
+    function namehash(string calldata _name) external pure returns (bytes32) {
+        (, bytes32 node) = NameEncoder.dnsEncodeName(_name);
+        return node;
+    }
+
+    /// @notice Helper to decode a DNS-encoded name
+    /// @dev In practice, this should be performed offchain
+    function decodeName(
+        bytes calldata _name
+    ) external pure returns (string memory) {
+        return ENSDNSUtils.dnsDecode(_name);
+    }
+
+    /// @notice Helper to derive a node from a parent node and label
+    /// @param parentNode The namehash of the parent, e.g. `namehash("name.eth")` for "name.eth"
+    /// @param label The label of the subnode, e.g. "x" for "x.name.eth"
+    /// @return The resulting subnode, e.g. `namehash("x.name.eth")` for "x.name.eth"
+    function makeNode(
+        bytes32 parentNode,
+        string calldata label
+    ) public pure returns (bytes32) {
+        bytes32 labelhash = keccak256(bytes(label));
+        return keccak256(abi.encodePacked(parentNode, labelhash));
+    }
+
     /// @notice The admin of the registry
     function owner() public view returns (address) {
         return owner(baseNode);
@@ -168,17 +195,6 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     /// @dev We need this because `ERC721.ownerOf()` reverts if the token doesn't exist
     function owner(bytes32 node) public view returns (address) {
         return _ownerOf(uint256(node));
-    }
-
-    /// @notice Helper to derive a node from a parent node and labelhash
-    /// @param node The parent node, e.g. `namehash("name.eth")` for "name.eth"
-    /// @param labelhash The labelhash of the subnode, e.g. `keccak256("x")` for "x.name.eth"
-    /// @return The resulting subnode, e.g. `namehash("x.name.eth")` for "x.name.eth"
-    function makeNode(
-        bytes32 node,
-        bytes32 labelhash
-    ) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(node, labelhash));
     }
 
     /// @notice The name of the NFT collection and base ENS name
@@ -219,7 +235,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     /// @notice Sets the base URI for token metadata
     /// @param baseURI The new base URI
     /// @dev Only callable by admin role
-    function setBaseURI(string memory baseURI) external onlyOwner {
+    function setBaseURI(string calldata baseURI) external onlyOwner {
         _setBaseURI(baseURI);
     }
 
@@ -227,7 +243,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _setBaseURI(string memory baseURI) private {
+    function _setBaseURI(string calldata baseURI) private {
         _tokenBaseURI = baseURI;
         emit BaseURIUpdated(baseURI);
     }

@@ -34,9 +34,13 @@ interface IL2Registry is IL2Resolver, IERC721 {
     ) external returns (bytes32);
     function owner() external view returns (address);
     function owner(bytes32 node) external view returns (address);
+    function namehash(string calldata name) external pure returns (bytes32);
+    function decodeName(
+        bytes calldata name
+    ) external pure returns (string memory);
     function makeNode(
-        bytes32 node,
-        bytes32 labelhash
+        bytes32 parentNode,
+        string calldata label
     ) external pure returns (bytes32);
 
     // Admin functions

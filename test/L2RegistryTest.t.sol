@@ -81,10 +81,7 @@ contract L2RegistryTest is Test {
     function testFuzz_Register(string calldata label) public {
         vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
 
-        bytes32 expectedNode = registry.makeNode(
-            registry.baseNode(),
-            keccak256(abi.encodePacked(label))
-        );
+        bytes32 expectedNode = registry.makeNode(registry.baseNode(), label);
 
         // The node should not be minted yet
         assertEq(registry.owner(expectedNode), address(0));
@@ -160,10 +157,7 @@ contract L2RegistryTest is Test {
         bytes32 nodeFor3ld = registrar.register(label, user1);
         assertEq(registry.ownerOf(uint256(nodeFor3ld)), user1);
 
-        bytes32 expectedNodeFor4ld = registry.makeNode(
-            nodeFor3ld,
-            keccak256(abi.encodePacked(sublabel))
-        );
+        bytes32 expectedNodeFor4ld = registry.makeNode(nodeFor3ld, sublabel);
 
         // Create calldata for resolver for the soon-to-be-created 4LD
         bytes[] memory data = new bytes[](2);
@@ -259,8 +253,7 @@ contract L2RegistryTest is Test {
 
     function testFuzz_SetSingleRecordsByOwner(string calldata label) public {
         vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
-        bytes32 labelhash = keccak256(abi.encodePacked(label));
-        bytes32 node = registry.makeNode(registry.baseNode(), labelhash);
+        bytes32 node = registry.makeNode(registry.baseNode(), label);
 
         vm.prank(admin);
         registry.addRegistrar(address(registrar));
@@ -282,8 +275,7 @@ contract L2RegistryTest is Test {
         string calldata label
     ) public {
         vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
-        bytes32 labelhash = keccak256(abi.encodePacked(label));
-        bytes32 node = registry.makeNode(registry.baseNode(), labelhash);
+        bytes32 node = registry.makeNode(registry.baseNode(), label);
 
         vm.prank(admin);
         registry.addRegistrar(address(registrar));
@@ -301,8 +293,7 @@ contract L2RegistryTest is Test {
     function testFuzz_SetTextRecordWithSignature(string calldata label) public {
         vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
 
-        bytes32 labelhash = keccak256(abi.encodePacked(label));
-        bytes32 node = registry.makeNode(registry.baseNode(), labelhash);
+        bytes32 node = registry.makeNode(registry.baseNode(), label);
 
         vm.prank(admin);
         registry.addRegistrar(address(registrar));
@@ -347,8 +338,7 @@ contract L2RegistryTest is Test {
     ) public {
         vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
 
-        bytes32 labelhash = keccak256(abi.encodePacked(label));
-        bytes32 node = registry.makeNode(registry.baseNode(), labelhash);
+        bytes32 node = registry.makeNode(registry.baseNode(), label);
 
         vm.prank(admin);
         registry.addRegistrar(address(registrar));
@@ -389,8 +379,7 @@ contract L2RegistryTest is Test {
 
     function testFuzz_SetRecordUnauthedReverts(string calldata label) public {
         vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
-        bytes32 labelhash = keccak256(abi.encodePacked(label));
-        bytes32 node = registry.makeNode(registry.baseNode(), labelhash);
+        bytes32 node = registry.makeNode(registry.baseNode(), label);
 
         // Register a name to `user1`
         vm.prank(admin);
@@ -410,8 +399,7 @@ contract L2RegistryTest is Test {
 
     function testFuzz_SetRecordsWithMulticall(string calldata label) public {
         vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
-        bytes32 labelhash = keccak256(abi.encodePacked(label));
-        bytes32 node = registry.makeNode(registry.baseNode(), labelhash);
+        bytes32 node = registry.makeNode(registry.baseNode(), label);
 
         bytes[] memory data = new bytes[](3);
 
@@ -459,6 +447,20 @@ contract L2RegistryTest is Test {
     function test_ImplementationAddressNotNull() public view {
         address implAddr = factory.registryImplementation();
         assertTrue(implAddr != address(0));
+    }
+
+    function test_RegistryHelperFunctions() public {
+        bytes32 node = registry.namehash("testname.eth");
+        assertEq(
+            node,
+            0x9709c900112b2537a4268551c6a89092af6ce2e45a001af4e8dc5d800c4eae25
+        );
+
+        bytes memory dnsEncodedName = registry.names(registry.baseNode());
+        assertEq(dnsEncodedName, hex"08746573746e616d650365746800");
+
+        string memory decodedName = registry.decodeName(dnsEncodedName);
+        assertEq(decodedName, "testname.eth");
     }
 
     function test_TokenMetadata() public {
