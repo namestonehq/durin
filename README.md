@@ -19,7 +19,7 @@ Once complete, note the deployed L2 registry address.
 
 ### 2. Enable Name Resolution
 
-To connect your newly deployed L2 registry with your ENS name on L1, change the name's resolver to `0x0bc45886470e9256dccd48e90d706630db5228ed` and call `setL2Registry()` with the L2 registry's address and chain ID.
+To connect your newly deployed L2 registry with your ENS name on L1, change the name's resolver to `0x8A968aB9eb8C084FBC44c531058Fc9ef945c3D61` and call `setL2Registry()` with the L2 registry's address and chain ID.
 
 Both of these steps can be done via [durin.dev](https://durin.dev) or the [ENS manager app](http://app.ens.domains).
 
@@ -76,16 +76,16 @@ This repo includes all of the smart contract (L1 and L2) required to enable subn
 
 | L2               | Registry Factory                                                                                                                         |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Base             | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://basescan.org/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)                  |
-| Base Sepolia     | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://sepolia.basescan.org/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)          |
-| Optimism         | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://optimistic.etherscan.io/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)       |
-| Optimism Sepolia | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://sepolia-optimism.etherscan.io/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19) |
-| Scroll           | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://scrollscan.com/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)                |
-| Scroll Sepolia   | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://sepolia-blockscout.scroll.io/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)  |
-| Arbitrum         | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://arbiscan.io/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)                   |
-| Arbitrum Sepolia | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://sepolia.arbiscan.io/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)           |
-| Linea            | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://lineascan.build/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)               |
-| Linea Sepolia    | [`0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19`](https://sepolia.lineascan.build/address/0xdDddddDdDDCab1186FC1CA5938E6025aEeB4eE19)       |
+| Base             | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://basescan.org/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)                  |
+| Base Sepolia     | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://sepolia.basescan.org/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)          |
+| Optimism         | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://optimistic.etherscan.io/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)       |
+| Optimism Sepolia | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://sepolia-optimism.etherscan.io/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d) |
+| Scroll           | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://scrollscan.com/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)                |
+| Scroll Sepolia   | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://sepolia-blockscout.scroll.io/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)  |
+| Arbitrum         | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://arbiscan.io/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)                   |
+| Arbitrum Sepolia | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://sepolia.arbiscan.io/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)           |
+| Linea            | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://lineascan.build/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)               |
+| Linea Sepolia    | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://sepolia.lineascan.build/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)       |
 
 ## Architecture
 
