@@ -27,6 +27,10 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     /// @dev namehash of `name()`
     bytes32 public baseNode;
 
+    /// @notice Total number of subnames
+    /// @dev Includes names at any depth
+    uint256 public totalSupply;
+
     string private _tokenName;
     string private _tokenSymbol;
     string private _tokenBaseURI;
@@ -115,6 +119,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         baseNode = node;
         names[baseNode] = dnsEncodedName;
         _safeMint(admin, uint256(node));
+        totalSupply++;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -145,6 +150,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         _safeMint(_owner, uint256(subnode));
         _multicall(subnode, data);
         names[subnode] = dnsEncodedName;
+        totalSupply++;
 
         emit NewOwner(node, labelhash, _owner);
         emit SubnodeCreated(subnode, dnsEncodedName, _owner);

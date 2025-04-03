@@ -85,6 +85,9 @@ contract L2RegistryTest is Test {
         // The node should not be minted yet
         assertEq(registry.owner(expectedNode), address(0));
 
+        // totalSupply should start at 1 because the root node is minted during deployment
+        assertEq(registry.totalSupply(), 1);
+
         vm.prank(admin);
         registry.addRegistrar(address(registrar));
 
@@ -93,6 +96,8 @@ contract L2RegistryTest is Test {
 
         assertEq(node, expectedNode);
         assertEq(registry.ownerOf(uint256(node)), user1);
+        assertEq(registry.owner(node), user1);
+        assertEq(registry.totalSupply(), 2);
 
         // Verify that the contract is storing the full DNS-encoded name correctly
         string memory fullName = string.concat(label, ".", registry.name());
@@ -181,6 +186,7 @@ contract L2RegistryTest is Test {
         assertEq(registry.owner(actualNodeFor4ld), user1);
         assertEq(registry.text(expectedNodeFor4ld, "key"), "value");
         assertEq(registry.addr(expectedNodeFor4ld), user1);
+        assertEq(registry.totalSupply(), 3);
 
         // Then the subnode owner should be able to move the subnode to a new owner
         registry.transferFrom(user1, user2, uint256(actualNodeFor4ld));
