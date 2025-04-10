@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-/**
- * @dev Implements ERC-7884
- */
+/// @dev Implements ERC-7884
 interface IOperationRouter {
     /// @dev Error to raise when mutations are being deferred onchain, that being the layer 1 or a layer 2
     /// @param chainId Chain ID to perform the deferred mutation to.
