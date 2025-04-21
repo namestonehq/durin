@@ -10,8 +10,4 @@ app.use('*', cors())
 app.get('/health', async (c) => c.json({ status: 'ok' }))
 app.get('/v1/:sender/:data', async (c) => getCcipRead(c.req, c.env))
 
-app.get('test', async (c) =>
-  c.json({ value: envVar('ALCHEMY_API_KEY', c.env) })
-)
-
 export default app
