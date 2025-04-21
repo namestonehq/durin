@@ -13,7 +13,7 @@ import { z } from 'zod'
 
 import { handleQuery } from '../ccip-read/query'
 import { resolverAbi } from '../ccip-read/utils'
-import { type Env } from '../env'
+import { type Env, envVar } from '../env'
 
 const schema = z.object({
   sender: z.string().refine((data) => isAddress(data)),
@@ -68,7 +68,7 @@ export const getCcipRead = async (
 
   const sig = await sign({
     hash: messageHash,
-    privateKey: env.SIGNER_PRIVATE_KEY,
+    privateKey: envVar('SIGNER_PRIVATE_KEY', env),
   })
 
   // An ABI encoded tuple of `(bytes result, uint64 expires, bytes sig)`, where
