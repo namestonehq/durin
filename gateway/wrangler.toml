@@ -1,0 +1,4 @@
+name = "durin-gateway"
+main = "./src/index.ts"
+compatibility_date = "2024-03-19"
+
