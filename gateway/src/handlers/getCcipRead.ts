@@ -1,3 +1,4 @@
+import type { HonoRequest } from 'hono'
 import { type Hex, serializeSignature } from 'viem'
 import { sign } from 'viem/accounts'
 import {
@@ -12,6 +13,7 @@ import { z } from 'zod'
 
 import { handleQuery } from '../ccip-read/query'
 import { resolverAbi } from '../ccip-read/utils'
+import { type Env } from '../env'
 
 const schema = z.object({
   sender: z.string().refine((data) => isAddress(data)),
@@ -19,8 +21,11 @@ const schema = z.object({
 })
 
 // Implements ERC-3668
-export const getCcipRead = async (req: Bun.BunRequest): Promise<Response> => {
-  const safeParse = schema.safeParse(req.params)
+export const getCcipRead = async (
+  req: HonoRequest,
+  env: Env
+): Promise<Response> => {
+  const safeParse = schema.safeParse(req.param())
 
   if (!safeParse.success) {
     return Response.json(
@@ -41,6 +46,7 @@ export const getCcipRead = async (req: Bun.BunRequest): Promise<Response> => {
     encodedResolveCall: decodedStuffedResolveCall.args[1] as Hex,
     targetChainId: decodedStuffedResolveCall.args[2],
     targetRegistryAddress: decodedStuffedResolveCall.args[3],
+    env,
   })
 
   const ttl = 1000
@@ -62,7 +68,7 @@ export const getCcipRead = async (req: Bun.BunRequest): Promise<Response> => {
 
   const sig = await sign({
     hash: messageHash,
-    privateKey: process.env.SIGNER_PRIVATE_KEY as Hex,
+    privateKey: env.SIGNER_PRIVATE_KEY,
   })
 
   // An ABI encoded tuple of `(bytes result, uint64 expires, bytes sig)`, where

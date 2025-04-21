@@ -1,33 +1,17 @@
+import { Hono } from 'hono'
+import { cors } from 'hono/cors'
+
+import { type Env, envVar } from './env'
 import { getCcipRead } from './handlers/getCcipRead'
 
-const port = process.env.PORT ? parseInt(process.env.PORT) : 3000
-console.log(`Listening on port ${port}`)
+const app = new Hono<{ Bindings: Env }>()
 
-const server = Bun.serve({
-  port,
-  routes: {
-    '/health': {
-      GET: async () => {
-        return Response.json({ status: 'ok' })
-      },
-    },
-    '/v1/:sender/:data': {
-      GET: async (req) => {
-        const res = await getCcipRead(req)
+app.use('*', cors())
+app.get('/health', async (c) => c.json({ status: 'ok' }))
+app.get('/v1/:sender/:data', async (c) => getCcipRead(c.req, c.env))
 
-        return Response.json(await res.json(), {
-          status: res.status,
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, OPTIONS',
-          },
-        })
-      },
-    },
-  },
-  fetch() {
-    return new Response('Not found', { status: 404 })
-  },
-})
+app.get('test', async (c) =>
+  c.json({ value: envVar('ALCHEMY_API_KEY', c.env) })
+)
 
-export default { ...server }
+export default app

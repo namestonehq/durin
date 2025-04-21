@@ -20,6 +20,7 @@ import {
 } from 'viem/chains'
 import { decodeFunctionData } from 'viem/utils'
 
+import { type Env, envVar } from '../env'
 import { dnsDecodeName, resolverAbi } from './utils'
 
 const supportedChains = [
@@ -41,25 +42,12 @@ const supportedChains = [
   polygonAmoy,
 ]
 
-const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY
-
-// Create clients outside of the function lets us take advantage of Viem's native caching
-const clients = supportedChains.map((chain) =>
-  createPublicClient({
-    chain,
-    cacheTime: 10_000,
-    batch: { multicall: true },
-    transport: http(
-      ALCHEMY_API_KEY ? alchemy(chain.id, ALCHEMY_API_KEY) : undefined
-    ),
-  })
-)
-
 type HandleQueryArgs = {
   dnsEncodedName: Hex
   encodedResolveCall: Hex
   targetChainId: bigint
   targetRegistryAddress: Hex
+  env: Env
 }
 
 export async function handleQuery({
@@ -67,6 +55,7 @@ export async function handleQuery({
   encodedResolveCall,
   targetChainId,
   targetRegistryAddress,
+  env,
 }: HandleQueryArgs) {
   const name = dnsDecodeName(dnsEncodedName)
 
@@ -76,14 +65,22 @@ export async function handleQuery({
     data: encodedResolveCall,
   })
 
-  const l2Client = clients.find(
-    (client) => BigInt(client.chain.id) === targetChainId
+  const chain = supportedChains.find(
+    (chain) => BigInt(chain.id) === targetChainId
   )
 
-  if (!l2Client) {
+  if (!chain) {
     console.error(`Unsupported chain ${targetChainId} for ${name}`)
     return '0x' as const
   }
+
+  const ALCHEMY_API_KEY = envVar('ALCHEMY_API_KEY', env)
+  const l2Client = createPublicClient({
+    chain,
+    transport: http(
+      ALCHEMY_API_KEY ? alchemy(chain.id, ALCHEMY_API_KEY) : undefined
+    ),
+  })
 
   console.log({
     targetChainId,
