@@ -3,7 +3,7 @@ import { getCcipRead } from './handlers/getCcipRead'
 const port = process.env.PORT ? parseInt(process.env.PORT) : 3000
 console.log(`Listening on port ${port}`)
 
-Bun.serve({
+const server = Bun.serve({
   port,
   routes: {
     '/health': {
@@ -29,3 +29,5 @@ Bun.serve({
     return new Response('Not found', { status: 404 })
   },
 })
+
+export default { ...server }
