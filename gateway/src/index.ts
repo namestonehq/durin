@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 
-import { type Env, envVar } from './env'
+import { type Env } from './env'
 import { getCcipRead } from './handlers/getCcipRead'
 
 const app = new Hono<{ Bindings: Env }>()
