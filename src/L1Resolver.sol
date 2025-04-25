@@ -15,6 +15,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {strings} from "@arachnid/string-utils/strings.sol";
 
 import {ENSDNSUtils} from "./lib/ENSDNSUtils.sol";
+import {IOperationRouter} from "./interfaces/IOperationRouter.sol";
 import {SignatureVerifier} from "./lib/SignatureVerifier.sol";
 
 interface IResolverService {
@@ -168,6 +169,14 @@ contract L1Resolver is IExtendedResolver, Ownable {
         (, bytes32 parentNode) = NameEncoder.dnsEncodeName(parentName);
 
         L2Registry memory targetL2Registry = l2Registry[parentNode];
+
+        // If the calldata is intended for `getOperationHandler()`, throw the ERC-7884 error
+        if (bytes4(data) == IOperationRouter.getOperationHandler.selector) {
+            revert IOperationRouter.OperationHandledOnchain(
+                targetL2Registry.chainId,
+                targetL2Registry.registryAddress
+            );
+        }
 
         return
             stuffedResolveCall(
