@@ -80,7 +80,11 @@ export async function handleQuery({
   const l2Client = createPublicClient({
     chain,
     transport: http(
-      ALCHEMY_API_KEY ? alchemy(chain.id, ALCHEMY_API_KEY) : undefined
+      chain.id === worldchainSepolia.id
+        ? 'https://worldchain-sepolia.g.alchemy.com/public'
+        : ALCHEMY_API_KEY
+          ? alchemy(chain.id, ALCHEMY_API_KEY)
+          : undefined
     ),
   })
 
