@@ -74,7 +74,9 @@ export async function handleQuery({
     return '0x' as const
   }
 
-  const ALCHEMY_API_KEY = envVar('ALCHEMY_API_KEY', env)
+  // const ALCHEMY_API_KEY = envVar('ALCHEMY_API_KEY', env)
+  const ALCHEMY_API_KEY = 'jMD1nSPG4ZFsUPjIuUkhO'
+
   const l2Client = createPublicClient({
     chain,
     transport: http(
