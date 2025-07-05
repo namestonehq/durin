@@ -75,7 +75,7 @@ export async function handleQuery({
   }
 
   // const ALCHEMY_API_KEY = envVar('ALCHEMY_API_KEY', env)
-  const ALCHEMY_API_KEY = 'jMD1nSPG4ZFsUPjIuUkhO'
+  const ALCHEMY_API_KEY = 'WCxKqTtbcItjAXW7R_TDrj3wp57JD6GO'
 
   const l2Client = createPublicClient({
     chain,
