@@ -92,11 +92,16 @@ export async function handleQuery({
     args,
   })
 
-  // We can just pass through the call to our L2 resolver because it shares the same interface
-  return l2Client.readContract({
-    address: targetRegistryAddress,
-    abi: [resolverAbi[1]],
-    functionName: 'resolve',
-    args: [dnsEncodedName, encodedResolveCall],
-  })
+  try {
+    // We can just pass through the call to our L2 resolver because it shares the same interface
+    return l2Client.readContract({
+      address: targetRegistryAddress,
+      abi: [resolverAbi[1]],
+      functionName: 'resolve',
+      args: [dnsEncodedName, encodedResolveCall],
+    })
+  } catch (error) {
+    console.error('There is an error when calling the l2TargetRegistry')
+    return '0x' as const
+  }
 }
