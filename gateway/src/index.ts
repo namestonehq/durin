@@ -7,6 +7,7 @@ import { getCcipRead } from './handlers/getCcipRead'
 const app = new Hono<{ Bindings: Env }>()
 
 app.use('*', cors())
+app.get('/', async (c) => c.json({ status: 'ok' }))
 app.get('/health', async (c) => c.json({ status: 'ok' }))
 app.get('/v1/:sender/:data', async (c) => getCcipRead(c.req, c.env))
 
