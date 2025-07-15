@@ -74,12 +74,12 @@ export async function handleQuery({
     return '0x' as const
   }
 
-  // const ALCHEMY_API_KEY = envVar('ALCHEMY_API_KEY', env)
-  const ALCHEMY_API_KEY = 'WCxKqTtbcItjAXW7R_TDrj3wp57JD6GO'
+  const ALCHEMY_API_KEY = envVar('ALCHEMY_API_KEY', env)
 
   const l2Client = createPublicClient({
     chain,
     transport: http(
+      // There's an Alchemy issue with Worldchain Sepolia when using API keys, so we'll use the public endpoint for now
       chain.id === worldchainSepolia.id
         ? 'https://worldchain-sepolia.g.alchemy.com/public'
         : ALCHEMY_API_KEY
@@ -88,29 +88,18 @@ export async function handleQuery({
     ),
   })
 
-  const log = {
+  console.log({
     targetChainId,
     targetRegistryAddress,
     name,
     functionName,
     args,
-  }
+  })
 
-  try {
-    // We can just pass through the call to our L2 resolver because it shares the same interface
-    const data = await l2Client.readContract({
-      address: targetRegistryAddress,
-      abi: [resolverAbi[1]],
-      functionName: 'resolve',
-      args: [dnsEncodedName, encodedResolveCall],
-    })
-
-    console.log({ ...log, success: true })
-
-    return data
-  } catch (error) {
-    console.error('There is an error when calling the l2TargetRegistry')
-    console.log({ ...log, success: false })
-    return '0x' as const
-  }
+  return l2Client.readContract({
+    address: targetRegistryAddress,
+    abi: [resolverAbi[1]],
+    functionName: 'resolve',
+    args: [dnsEncodedName, encodedResolveCall],
+  })
 }
