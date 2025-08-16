@@ -35,7 +35,7 @@ You can either clone this repo and modify [L2Registrar.sol](./src/examples/L2Reg
 To get started, clone this repo:
 
 ```shell
-git clone git@github.com:resolverworks/durin.git
+git clone https://github.com/namestonehq/durin.git
 cd durin
 ```
 
