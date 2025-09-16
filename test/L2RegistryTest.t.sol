@@ -78,8 +78,17 @@ contract L2RegistryTest is Test {
         registry.addRegistrar(address(registrar));
     }
 
-    function testFuzz_Register(string calldata label) public {
-        vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
+    function testFuzz_Register(string calldata _label) public {
+        vm.assume(bytes(_label).length > 1 && bytes(_label).length < 255);
+
+        // NameCoder won't allow decoding scam labels, so we need to enforce a valid label by removing "."
+        bytes memory b = bytes(_label);
+        for (uint i = 0; i < b.length; i++) {
+            if (b[i] == bytes1(".")) {
+                b[i] = bytes1("");
+            }
+        }
+        string memory label = string(b);
 
         bytes32 expectedNode = registry.makeNode(registry.baseNode(), label);
 
