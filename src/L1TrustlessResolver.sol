@@ -10,6 +10,7 @@ pragma solidity ^0.8.20;
 
 import {ENS} from "@ensdomains/ens-contracts/registry/ENS.sol";
 import {IExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IExtendedResolver.sol";
+import {IGatewayProvider} from "@ensdomains/ens-contracts/ccipRead/IGatewayProvider.sol";
 import {NameCoder} from "@ensdomains/ens-contracts/utils/NameCoder.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {strings} from "@arachnid/string-utils/strings.sol";
@@ -39,7 +40,7 @@ interface INameWrapper {
 /// @author NameStone
 /// @notice ENS resolver that directs all queries to Unruggable Gateways for trustless resolution of data from L2s.
 /// @dev Callers must implement EIP-3668 and ENSIP-10.
-contract L1TrustlessResolver is IExtendedResolver, Ownable {
+contract L1TrustlessResolver is IExtendedResolver, IGatewayProvider, Ownable {
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -59,7 +60,7 @@ contract L1TrustlessResolver is IExtendedResolver, Ownable {
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
 
-    string[] public gateways;
+    string[] _urls;
     INameWrapper public immutable nameWrapper;
 
     mapping(bytes32 node => L2Registry l2Registry) public l2Registry;
@@ -73,6 +74,7 @@ contract L1TrustlessResolver is IExtendedResolver, Ownable {
         uint64 targetChainId,
         address targetRegistryAddress
     );
+    event GatewaysChanged(string[] urls);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -93,8 +95,9 @@ contract L1TrustlessResolver is IExtendedResolver, Ownable {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor(string[] memory _gateways, address _owner) Ownable(_owner) {
-        gateways = _gateways;
+    constructor(string[] memory _gatewayUrls, address _owner) Ownable(_owner) {
+        _urls = _gatewayUrls;
+        emit GatewaysChanged(_gatewayUrls);
 
         // Get the NameWrapper address from namewrapper.eth
         // This allows us to have the same deploy bytecode on mainnet and sepolia
@@ -184,10 +187,26 @@ contract L1TrustlessResolver is IExtendedResolver, Ownable {
         return hex"";
     }
 
+    /// @inheritdoc IGatewayProvider
+    function gateways() external view returns (string[] memory) {
+        return _urls;
+    }
+
     function supportsInterface(bytes4 interfaceID) public pure returns (bool) {
         return
             interfaceID == type(IExtendedResolver).interfaceId ||
             interfaceID == 0x01ffc9a7; // ERC-165 interface
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            ADMIN FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Sets the URL for the resolver service.
+    /// @param urls The gateway URLs.
+    function setGateways(string[] memory urls) external onlyOwner {
+        _urls = urls;
+        emit GatewaysChanged(urls);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -211,7 +230,7 @@ contract L1TrustlessResolver is IExtendedResolver, Ownable {
 
         revert OffchainLookup(
             address(this), // sender
-            gateways, // urls
+            _urls, // urls
             callData, // callData
             L1TrustlessResolver.resolveWithProof.selector, // callbackFunction
             callData // extraData
