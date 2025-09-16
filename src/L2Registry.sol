@@ -13,7 +13,6 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {NameCoder} from "@ensdomains/ens-contracts/utils/NameCoder.sol";
 
-import {ENSDNSUtils} from "./lib/ENSDNSUtils.sol";
 import {L2Resolver} from "./L2Resolver.sol";
 
 /// @title Durin Registry
@@ -171,7 +170,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     function decodeName(
         bytes calldata _name
     ) external pure returns (string memory) {
-        return ENSDNSUtils.dnsDecode(_name);
+        return NameCoder.decode(_name);
     }
 
     /// @notice Helper to derive a node from a parent node and label
@@ -274,7 +273,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
 
             string memory json = string.concat(
                 '{"name": "',
-                ENSDNSUtils.dnsDecode(names[bytes32(tokenId)]),
+                NameCoder.decode(names[bytes32(tokenId)]),
                 '"}'
             );
 

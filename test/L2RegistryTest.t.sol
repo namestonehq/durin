@@ -5,11 +5,11 @@ import {Test} from "forge-std/Test.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
+import {NameCoder} from "@ensdomains/ens-contracts/utils/NameCoder.sol";
 
 import {L2Registry} from "src/L2Registry.sol";
 import {L2RegistryFactory} from "src/L2RegistryFactory.sol";
 import {IL2Resolver} from "src/interfaces/IL2Resolver.sol";
-import {ENSDNSUtils} from "src/lib/ENSDNSUtils.sol";
 
 import {MockRegistrar} from "./mocks/MockRegistrar.sol";
 
@@ -102,7 +102,7 @@ contract L2RegistryTest is Test {
 
         // Verify that the contract is storing the full DNS-encoded name correctly
         string memory fullName = string.concat(label, ".", registry.name());
-        assertEq(ENSDNSUtils.dnsDecode(registry.names(node)), fullName);
+        assertEq(NameCoder.decode(registry.names(node)), fullName);
     }
 
     function testFuzz_RegisterTwiceReverts(string calldata label) public {
