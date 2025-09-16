@@ -24,22 +24,22 @@ import { type Env, envVar } from '../env'
 import { dnsDecodeName, resolverAbi } from './utils'
 
 const supportedChains = [
-  base,
-  baseSepolia,
-  optimism,
-  optimismSepolia,
   arbitrum,
   arbitrumSepolia,
-  linea,
-  lineaSepolia,
-  scroll,
-  scrollSepolia,
+  base,
+  baseSepolia,
   celo,
   celoAlfajores,
-  worldchain,
-  worldchainSepolia,
+  linea,
+  lineaSepolia,
+  optimism,
+  optimismSepolia,
   polygon,
   polygonAmoy,
+  scroll,
+  scrollSepolia,
+  worldchain,
+  worldchainSepolia,
 ]
 
 type HandleQueryArgs = {
