@@ -10,11 +10,10 @@ pragma solidity ^0.8.20;
 
 import {ENS} from "@ensdomains/ens-contracts/registry/ENS.sol";
 import {IExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IExtendedResolver.sol";
-import {NameEncoder} from "@ensdomains/ens-contracts/utils/NameEncoder.sol";
+import {NameCoder} from "@ensdomains/ens-contracts/utils/NameCoder.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {strings} from "@arachnid/string-utils/strings.sol";
 
-import {ENSDNSUtils} from "./lib/ENSDNSUtils.sol";
 import {IOperationRouter} from "./interfaces/IOperationRouter.sol";
 
 interface IResolverService {
@@ -137,7 +136,7 @@ contract L1TrustlessResolver is IExtendedResolver, Ownable {
         bytes calldata name,
         bytes calldata data
     ) external view override returns (bytes memory) {
-        string memory decodedName = ENSDNSUtils.dnsDecode(name); // 'sub.name.eth'
+        string memory decodedName = NameCoder.decode(name); // 'sub.name.eth'
         strings.slice memory s = strings.toSlice(decodedName);
         strings.slice memory delim = strings.toSlice(".");
         string[] memory parts = new string[](strings.count(s, delim) + 1);
@@ -155,7 +154,8 @@ contract L1TrustlessResolver is IExtendedResolver, Ownable {
         );
 
         // Encode the parent name
-        (, bytes32 parentNode) = NameEncoder.dnsEncodeName(parentName);
+        bytes memory parentNameBytes = NameCoder.encode(parentName);
+        bytes32 parentNode = NameCoder.namehash(parentNameBytes, 0);
 
         L2Registry memory targetL2Registry = l2Registry[parentNode];
 

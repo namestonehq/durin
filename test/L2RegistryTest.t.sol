@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
@@ -187,7 +187,7 @@ contract L2RegistryTest is Test {
         assertEq(registry.totalSupply(), 3);
 
         // Then the subnode owner should be able to move the subnode to a new owner
-        registry.transferFrom(user1, user2, uint256(actualNodeFor4ld));
+        registry.safeTransferFrom(user1, user2, uint256(actualNodeFor4ld));
         vm.stopPrank();
         assertEq(registry.owner(actualNodeFor4ld), user2);
     }
@@ -449,7 +449,7 @@ contract L2RegistryTest is Test {
         assertTrue(implAddr != address(0));
     }
 
-    function test_RegistryHelperFunctions() public {
+    function test_RegistryHelperFunctions() public view {
         bytes32 node = registry.namehash("testname.eth");
         assertEq(
             node,

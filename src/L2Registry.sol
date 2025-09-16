@@ -11,7 +11,7 @@ pragma solidity ^0.8.20;
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import {NameEncoder} from "@ensdomains/ens-contracts/utils/NameEncoder.sol";
+import {NameCoder} from "@ensdomains/ens-contracts/utils/NameCoder.sol";
 
 import {ENSDNSUtils} from "./lib/ENSDNSUtils.sol";
 import {L2Resolver} from "./L2Resolver.sol";
@@ -108,9 +108,8 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         string calldata baseURI,
         address admin
     ) external initializer {
-        (bytes memory dnsEncodedName, bytes32 node) = NameEncoder.dnsEncodeName(
-            tokenName
-        );
+        bytes memory dnsEncodedName = NameCoder.encode(tokenName);
+        bytes32 node = NameCoder.namehash(dnsEncodedName, 0);
 
         // ERC721
         _tokenName = tokenName;
@@ -162,7 +161,8 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     /// @notice Helper to derive a node from a name
     /// @dev In practice, this should be performed offchain
     function namehash(string calldata _name) external pure returns (bytes32) {
-        (, bytes32 node) = NameEncoder.dnsEncodeName(_name);
+        bytes memory dnsEncodedName = NameCoder.encode(_name);
+        bytes32 node = NameCoder.namehash(dnsEncodedName, 0);
         return node;
     }
 
