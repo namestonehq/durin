@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
+import {NameCoder} from "@ensdomains/ens-contracts/utils/NameCoder.sol";
 
 import {L2Registry} from "src/L2Registry.sol";
 import {L2RegistryFactory} from "src/L2RegistryFactory.sol";
 import {IL2Resolver} from "src/interfaces/IL2Resolver.sol";
-import {ENSDNSUtils} from "src/lib/ENSDNSUtils.sol";
 
 import {MockRegistrar} from "./mocks/MockRegistrar.sol";
 
@@ -78,8 +78,17 @@ contract L2RegistryTest is Test {
         registry.addRegistrar(address(registrar));
     }
 
-    function testFuzz_Register(string calldata label) public {
-        vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
+    function testFuzz_Register(string calldata _label) public {
+        vm.assume(bytes(_label).length > 1 && bytes(_label).length < 255);
+
+        // NameCoder won't allow decoding scam labels, so we need to enforce a valid label by removing "."
+        bytes memory b = bytes(_label);
+        for (uint i = 0; i < b.length; i++) {
+            if (b[i] == bytes1(".")) {
+                b[i] = bytes1("");
+            }
+        }
+        string memory label = string(b);
 
         bytes32 expectedNode = registry.makeNode(registry.baseNode(), label);
 
@@ -102,7 +111,7 @@ contract L2RegistryTest is Test {
 
         // Verify that the contract is storing the full DNS-encoded name correctly
         string memory fullName = string.concat(label, ".", registry.name());
-        assertEq(ENSDNSUtils.dnsDecode(registry.names(node)), fullName);
+        assertEq(NameCoder.decode(registry.names(node)), fullName);
     }
 
     function testFuzz_RegisterTwiceReverts(string calldata label) public {
@@ -187,7 +196,7 @@ contract L2RegistryTest is Test {
         assertEq(registry.totalSupply(), 3);
 
         // Then the subnode owner should be able to move the subnode to a new owner
-        registry.transferFrom(user1, user2, uint256(actualNodeFor4ld));
+        registry.safeTransferFrom(user1, user2, uint256(actualNodeFor4ld));
         vm.stopPrank();
         assertEq(registry.owner(actualNodeFor4ld), user2);
     }
@@ -449,7 +458,7 @@ contract L2RegistryTest is Test {
         assertTrue(implAddr != address(0));
     }
 
-    function test_RegistryHelperFunctions() public {
+    function test_RegistryHelperFunctions() public view {
         bytes32 node = registry.namehash("testname.eth");
         assertEq(
             node,

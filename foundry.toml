@@ -46,4 +46,7 @@ worldchain-sepolia = "https://worldchain-sepolia.drpc.org"
 # Higher values gives more confidence in results at the cost of testing speed.
 runs = 256
 
+[lint]
+exclude_lints = ["mixed-case-variable", "screaming-snake-case-immutable", "screaming-snake-case-const", "mixed-case-function", "asm-keccak256"]
+
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
