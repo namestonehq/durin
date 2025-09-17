@@ -107,7 +107,7 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
     mapping(bytes32 node => L2Registry l2Registry) public l2Registry;
 
     /// @dev Mapping of chainId to verifier
-    mapping(uint64 => IGatewayVerifier) _verifiers;
+    mapping(uint64 => IGatewayVerifier) public verifiers;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -205,7 +205,7 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
         bytes memory parentNameBytes = NameCoder.encode(parentName);
         bytes32 parentNode = NameCoder.namehash(parentNameBytes, 0);
         L2Registry memory targetL2Registry = l2Registry[parentNode];
-        IGatewayVerifier verifier = _verifiers[targetL2Registry.chainId];
+        IGatewayVerifier verifier = verifiers[targetL2Registry.chainId];
 
         if (
             targetL2Registry.registryAddress == address(0) ||
@@ -294,6 +294,6 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
         uint64 chainId,
         IGatewayVerifier verifier
     ) external onlyOwner {
-        _verifiers[chainId] = verifier;
+        verifiers[chainId] = verifier;
     }
 }
