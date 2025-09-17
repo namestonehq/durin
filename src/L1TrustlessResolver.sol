@@ -95,7 +95,7 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
     uint256 constant SLOT_VERSIONS = 6;
     uint256 constant SLOT_ABI = 7;
     uint256 constant SLOT_ADDRS = 8;
-    uint256 constant SLOT_CHASH = 9;
+    uint256 constant SLOT_CONTENTHASH = 9;
     uint256 constant SLOT_TEXTS = 10;
 
     /*//////////////////////////////////////////////////////////////
@@ -178,11 +178,11 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
 
     /// @notice Resolves a name, as specified by ENSIP 10.
     /// @param name The DNS-encoded name to resolve.
-    /// @param request The ABI encoded data for the underlying resolution function (Eg, addr(bytes32), text(bytes32,string), etc).
+    /// @param data The ABI encoded data for the underlying resolution function (Eg, addr(bytes32), text(bytes32,string), etc).
     /// @return The return data, ABI encoded identically to the underlying function.
     function resolve(
         bytes calldata name,
-        bytes calldata request
+        bytes calldata data
     ) external view override returns (bytes memory) {
         string memory decodedName = NameCoder.decode(name); // 'sub.name.eth'
         strings.slice memory s = strings.toSlice(decodedName);
@@ -214,7 +214,7 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
             revert UnreachableName(name);
         }
 
-        bytes4 selector = bytes4(request);
+        bytes4 selector = bytes4(data);
         bytes32 node = NameCoder.namehash(name, 0);
 
         // ENSIP-20 / ERC-7884
@@ -228,25 +228,39 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
         // Build a Unruggable Gateways request based on the function selector of the passed calldata
         GatewayRequest memory req = GatewayFetcher.newRequest(1);
         req.setTarget(targetL2Registry.registryAddress);
+        req.push(node); // leave on stack as offset 0
+        req.setSlot(SLOT_VERSIONS); // recordVersions
+        req.pushStack(0).follow(); // recordVersions[node]
+        req.read(); // version, leave on stack at offset 1
 
         if (selector == IABIResolver.ABI.selector) {
-            //
+            (, uint256 contentTypes) = abi.decode(data[4:], (bytes32, uint256));
+            req.setSlot(SLOT_ABI); // abi
+            req.follow().follow().push(contentTypes).follow(); // abi[version][node][contentTypes]
+            req.readBytes().setOutput(0);
         } else if (selector == IAddressResolver.addr.selector) {
-            //
+            (, uint256 coinType) = abi.decode(data[4:], (bytes32, uint256));
+            req.setSlot(SLOT_ADDRS); // addr
+            req.follow().follow().push(coinType).follow(); // addr[version][node][coinType]
+            req.readBytes().setOutput(0);
         } else if (selector == IAddrResolver.addr.selector) {
-            // First read the version of the node from the `recordVersions` slot
-            req.setSlot(SLOT_VERSIONS).push(node).follow().readBytes();
-            // Then read the address from the `versionable_addresses` slot
+            req.setSlot(SLOT_ADDRS); // addr
+            req.follow().follow().push(60).follow(); // addr[version][node](60)
+            req.readBytes().setOutput(0);
         } else if (selector == IContentHashResolver.contenthash.selector) {
-            //
+            req.setSlot(SLOT_CONTENTHASH); // contenthash
+            req.follow().follow(); // contenthash[version][node]
+            req.readBytes().setOutput(0);
         } else if (selector == ITextResolver.text.selector) {
-            //
+            (, string memory key) = abi.decode(data[4:], (bytes32, string));
+            req.setSlot(SLOT_TEXTS); // text
+            req.follow().follow().push(key).follow(); // text[version][node][key]
+            req.readBytes().setOutput(0);
         } else {
             revert UnsupportedResolverProfile(selector);
         }
 
         /// Execute the Unruggable Gateways CCIP request
-        /// Pass through the called function selector in our carry bytes such that the callback can appropriately decode the response
         fetch(verifier, req, this.resolveCallback.selector);
     }
 
@@ -254,16 +268,15 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
     function resolveCallback(
         bytes[] memory values,
         uint8,
-        bytes memory carry
+        bytes memory data
     ) external pure returns (bytes memory) {
-        bytes4 selector = abi.decode(carry, (bytes4));
+        bytes memory value = values[0];
 
-        /// If we have an address as bytes, re-encode it correctly for decoding at the library level
-        if (selector == IAddrResolver.addr.selector) {
-            return abi.encode(uint160(bytes20(values[0])));
+        if (bytes4(data) == IAddrResolver.addr.selector) {
+            return abi.encode(address(bytes20(value)));
         }
 
-        return abi.encode(values[0]);
+        return abi.encode(value);
     }
 
     function supportsInterface(bytes4 interfaceID) public pure returns (bool) {
