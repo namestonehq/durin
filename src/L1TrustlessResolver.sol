@@ -42,11 +42,6 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
         address registryAddress;
     }
 
-    struct Verifier {
-        IGatewayVerifier verifier;
-        string[] gateways;
-    }
-
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -97,6 +92,7 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
 
     // Storage mapping from L2Registry.sol
     // `cast storage -r "https://base-sepolia-rpc.publicnode.com" 0x4Cd8e4135C41cd6982F2b2745D226d794b8A28ca`
+    uint256 constant SLOT_VERSIONS = 6;
     uint256 constant SLOT_ABI = 7;
     uint256 constant SLOT_ADDRS = 8;
     uint256 constant SLOT_CHASH = 9;
@@ -110,8 +106,8 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
 
     mapping(bytes32 node => L2Registry l2Registry) public l2Registry;
 
-    /// @dev Mapping of verifiers and gateway URLs for a chain ID
-    mapping(uint64 => Verifier) _verifiers;
+    /// @dev Mapping of chainId to verifier
+    mapping(uint64 => IGatewayVerifier) _verifiers;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -209,16 +205,17 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
         bytes memory parentNameBytes = NameCoder.encode(parentName);
         bytes32 parentNode = NameCoder.namehash(parentNameBytes, 0);
         L2Registry memory targetL2Registry = l2Registry[parentNode];
-        Verifier memory verifier = _verifiers[targetL2Registry.chainId];
+        IGatewayVerifier verifier = _verifiers[targetL2Registry.chainId];
 
         if (
             targetL2Registry.registryAddress == address(0) ||
-            address(verifier.verifier) == address(0)
+            address(verifier) == address(0)
         ) {
             revert UnreachableName(name);
         }
 
         bytes4 selector = bytes4(request);
+        bytes32 node = NameCoder.namehash(name, 0);
 
         // ENSIP-20 / ERC-7884
         if (selector == IOperationRouter.getOperationHandler.selector) {
@@ -237,7 +234,9 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
         } else if (selector == IAddressResolver.addr.selector) {
             //
         } else if (selector == IAddrResolver.addr.selector) {
-            //
+            // First read the version of the node from the `recordVersions` slot
+            req.setSlot(SLOT_VERSIONS).push(node).follow().readBytes();
+            // Then read the address from the `versionable_addresses` slot
         } else if (selector == IContentHashResolver.contenthash.selector) {
             //
         } else if (selector == ITextResolver.text.selector) {
@@ -248,13 +247,7 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
 
         /// Execute the Unruggable Gateways CCIP request
         /// Pass through the called function selector in our carry bytes such that the callback can appropriately decode the response
-        fetch(
-            verifier.verifier,
-            req,
-            this.resolveCallback.selector,
-            abi.encode(selector),
-            verifier.gateways
-        );
+        fetch(verifier, req, this.resolveCallback.selector);
     }
 
     /// @notice The callback for the `OffchainLookup` triggered by our implementation of `IExtendedResolver` (ENSIP-10).
@@ -286,9 +279,8 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
     /// @notice Define the appropriate default Unruggable Gateway Verifier with a chainId
     function setVerifier(
         uint64 chainId,
-        string[] memory gatewayURLs,
         IGatewayVerifier verifier
     ) external onlyOwner {
-        _verifiers[chainId] = Verifier(verifier, gatewayURLs);
+        _verifiers[chainId] = verifier;
     }
 }
