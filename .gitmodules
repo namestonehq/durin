@@ -13,3 +13,6 @@
 [submodule "lib/solidity-stringutils"]
 	path = lib/solidity-stringutils
 	url = https://github.com/Arachnid/solidity-stringutils
+[submodule "lib/unruggable-gateways"]
+	path = lib/unruggable-gateways
+	url = https://github.com/unruggable-labs/unruggable-gateways
