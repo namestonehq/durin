@@ -16,7 +16,7 @@ contract DeployL1TrustlessResolver is Script {
         vm.startBroadcast();
 
         new L1TrustlessResolver{salt: 0}(
-            0x179A862703a4adfb29896552DF9e307980D19285 // owner
+            vm.envAddress("L1_RESOLVER_OWNER") // owner
         );
 
         vm.stopBroadcast();
