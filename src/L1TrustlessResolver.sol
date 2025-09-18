@@ -133,26 +133,7 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
         bytes calldata name,
         bytes calldata data
     ) external view override returns (bytes memory) {
-        string memory decodedName = NameCoder.decode(name); // 'sub.name.eth'
-        strings.slice memory s = strings.toSlice(decodedName);
-        strings.slice memory delim = strings.toSlice(".");
-        string[] memory parts = new string[](strings.count(s, delim) + 1);
-
-        // Populate the parts array into ['sub', 'name', 'eth']
-        for (uint i = 0; i < parts.length; i++) {
-            parts[i] = strings.toString(strings.split(s, delim));
-        }
-
-        // Get the 2LD + TLD (final 2 parts), regardless of how many labels the name has
-        string memory parentName = string.concat(
-            parts[parts.length - 2],
-            ".",
-            parts[parts.length - 1]
-        );
-
-        // Encode the parent name
-        bytes memory parentNameBytes = NameCoder.encode(parentName);
-        bytes32 parentNode = NameCoder.namehash(parentNameBytes, 0);
+        bytes32 parentNode = getParentNode(name);
         L2Registry memory targetL2Registry = l2Registry[parentNode];
         IGatewayVerifier v = verifier[targetL2Registry.chainId];
 
@@ -242,5 +223,33 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
         IGatewayVerifier verifierAddress
     ) external onlyOwner {
         verifier[chainId] = verifierAddress;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function getParentNode(
+        bytes calldata name
+    ) internal pure returns (bytes32) {
+        string memory decodedName = NameCoder.decode(name); // 'sub.name.eth'
+        strings.slice memory s = strings.toSlice(decodedName);
+        strings.slice memory delim = strings.toSlice(".");
+        string[] memory parts = new string[](strings.count(s, delim) + 1);
+
+        // Populate the parts array into ['sub', 'name', 'eth']
+        for (uint i = 0; i < parts.length; i++) {
+            parts[i] = strings.toString(strings.split(s, delim));
+        }
+
+        // Get the 2LD + TLD (final 2 parts), regardless of how many labels the name has
+        string memory parentName = string.concat(
+            parts[parts.length - 2],
+            ".",
+            parts[parts.length - 1]
+        );
+
+        bytes memory parentNameBytes = NameCoder.encode(parentName);
+        return NameCoder.namehash(parentNameBytes, 0);
     }
 }
