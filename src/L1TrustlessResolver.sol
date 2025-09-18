@@ -81,14 +81,6 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     error Unauthorized();
-    error InvalidSignature();
-    error OffchainLookup(
-        address sender,
-        string[] urls,
-        bytes callData,
-        bytes4 callbackFunction,
-        bytes extraData
-    );
 
     /// @param name DNS-encoded ENS name that does not exist.
     error UnreachableName(bytes name);
@@ -151,7 +143,7 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
             parts[i] = strings.toString(strings.split(s, delim));
         }
 
-        // get the 2LD + TLD (final 2 parts), regardless of how many labels the name has
+        // Get the 2LD + TLD (final 2 parts), regardless of how many labels the name has
         string memory parentName = string.concat(
             parts[parts.length - 2],
             ".",
@@ -236,10 +228,8 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
         return abi.encode(value);
     }
 
-    function supportsInterface(bytes4 interfaceID) public pure returns (bool) {
-        return
-            interfaceID == type(IExtendedResolver).interfaceId ||
-            interfaceID == 0x01ffc9a7; // ERC-165 interface
+    function supportsInterface(bytes4 id) external pure returns (bool) {
+        return id == type(IExtendedResolver).interfaceId || id == 0x01ffc9a7; // ERC-165 interface
     }
 
     /*//////////////////////////////////////////////////////////////
