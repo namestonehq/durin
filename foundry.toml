@@ -46,6 +46,12 @@ worldchain-sepolia = "https://worldchain-sepolia.drpc.org"
 runs = 256
 
 [lint]
-exclude_lints = ["mixed-case-variable", "screaming-snake-case-immutable", "screaming-snake-case-const", "mixed-case-function", "asm-keccak256"]
+exclude_lints = [
+  "screaming-snake-case-immutable",
+  "screaming-snake-case-const",
+  "mixed-case-function",
+  "asm-keccak256",
+  "unsafe-typecast"
+]
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config

@@ -34,7 +34,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
 
     string private _tokenName;
     string private _tokenSymbol;
-    string private _tokenBaseURI;
+    string private _tokenBaseUri;
 
     /// @notice Mapping of node (namehash) to name (DNS-encoded)
     mapping(bytes32 node => bytes name) public names;
@@ -204,7 +204,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
 
     /// @notice The base URI for NFT metadata
     function _baseURI() internal view override returns (string memory) {
-        return _tokenBaseURI;
+        return _tokenBaseUri;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -264,7 +264,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     }
 
     function _setBaseURI(string calldata baseURI) private {
-        _tokenBaseURI = baseURI;
+        _tokenBaseUri = baseURI;
         emit BaseURIUpdated(baseURI);
     }
 
@@ -276,7 +276,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     function tokenURI(
         uint256 tokenId
     ) public view override returns (string memory) {
-        if (bytes(_tokenBaseURI).length == 0) {
+        if (bytes(_tokenBaseUri).length == 0) {
             _requireOwned(tokenId);
 
             string memory json = string.concat(

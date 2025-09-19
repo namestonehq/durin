@@ -204,10 +204,10 @@ contract L1Resolver is IExtendedResolver, Ownable {
         return result;
     }
 
-    function supportsInterface(bytes4 interfaceID) public pure returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
         return
-            interfaceID == type(IExtendedResolver).interfaceId ||
-            interfaceID == 0x01ffc9a7; // ERC-165 interface
+            interfaceId == type(IExtendedResolver).interfaceId ||
+            interfaceId == 0x01ffc9a7; // ERC-165 interface
     }
 
     /*//////////////////////////////////////////////////////////////
