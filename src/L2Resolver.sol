@@ -55,9 +55,7 @@ contract L2Resolver is
     //////////////////////////////////////////////////////////////*/
 
     modifier unexpiredSignature(uint256 expiration) {
-        if (block.timestamp > expiration) {
-            revert SignatureExpired();
-        }
+        _unexpiredSignature(expiration);
         _;
     }
 
@@ -165,10 +163,6 @@ contract L2Resolver is
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _registry() internal view returns (L2Registry) {
-        return L2Registry(address(this));
-    }
-
     function isAuthorisedForAddress(
         address addr,
         bytes32 node
@@ -187,6 +181,16 @@ contract L2Resolver is
         }
 
         return true;
+    }
+
+    function _registry() internal view returns (L2Registry) {
+        return L2Registry(address(this));
+    }
+
+    function _unexpiredSignature(uint256 expiration) internal view {
+        if (block.timestamp > expiration) {
+            revert SignatureExpired();
+        }
     }
 
     /*//////////////////////////////////////////////////////////////

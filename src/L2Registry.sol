@@ -34,7 +34,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
 
     string private _tokenName;
     string private _tokenSymbol;
-    string private _tokenBaseURI;
+    string private _tokenBaseUri;
 
     /// @notice Mapping of node (namehash) to name (DNS-encoded)
     mapping(bytes32 node => bytes name) public names;
@@ -75,16 +75,12 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
 
     /// @dev Only the owner of the node or a registrar can call the function
     modifier onlyOwnerOrRegistrar(bytes32 node) {
-        if (owner(node) != msg.sender && !registrars[msg.sender]) {
-            revert Unauthorized(node);
-        }
+        _onlyOwnerOrRegistrar(node);
         _;
     }
 
     modifier onlyOwner() {
-        if (owner() != msg.sender) {
-            revert Unauthorized(baseNode);
-        }
+        _onlyOwner();
         _;
     }
 
@@ -208,7 +204,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
 
     /// @notice The base URI for NFT metadata
     function _baseURI() internal view override returns (string memory) {
-        return _tokenBaseURI;
+        return _tokenBaseUri;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -242,11 +238,6 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _setBaseURI(string calldata baseURI) private {
-        _tokenBaseURI = baseURI;
-        emit BaseURIUpdated(baseURI);
-    }
-
     function _addLabel(
         string memory label,
         bytes memory _name
@@ -260,6 +251,23 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         return abi.encodePacked(uint8(bytes(label).length), label, _name);
     }
 
+    function _onlyOwner() internal view {
+        if (owner() != msg.sender) {
+            revert Unauthorized(baseNode);
+        }
+    }
+
+    function _onlyOwnerOrRegistrar(bytes32 node) internal view {
+        if (owner(node) != msg.sender && !registrars[msg.sender]) {
+            revert Unauthorized(node);
+        }
+    }
+
+    function _setBaseURI(string calldata baseURI) private {
+        _tokenBaseUri = baseURI;
+        emit BaseURIUpdated(baseURI);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                OVERRIDES
     //////////////////////////////////////////////////////////////*/
@@ -268,7 +276,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     function tokenURI(
         uint256 tokenId
     ) public view override returns (string memory) {
-        if (bytes(_tokenBaseURI).length == 0) {
+        if (bytes(_tokenBaseUri).length == 0) {
             _requireOwned(tokenId);
 
             string memory json = string.concat(
