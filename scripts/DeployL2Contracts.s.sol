@@ -33,7 +33,7 @@ contract DeployL2Contracts is Script {
         networks[2] = "optimism-sepolia";
         networks[3] = "scroll-sepolia";
         networks[4] = "linea-sepolia";
-        networks[5] = "celo-alfajores";
+        networks[5] = "celo-sepolia";
         networks[6] = "polygon-amoy";
         networks[7] = "worldchain-sepolia";
         // networks[8] = "base";
