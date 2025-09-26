@@ -12,7 +12,7 @@
     "prettier": "3.5.3"
   },
   "dependencies": {
-    "evm-providers": "^0.5.7",
+    "evm-providers": "^0.5.8",
     "hono": "^4.7.7",
     "viem": "^2.37.8",
     "zod": "^3.21.4"
