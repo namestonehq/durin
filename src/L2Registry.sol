@@ -12,6 +12,7 @@ import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {NameCoder} from "@ensdomains/ens-contracts/utils/NameCoder.sol";
+import {strings} from "@arachnid/string-utils/strings.sol";
 
 import {L2Resolver} from "./L2Resolver.sol";
 
@@ -49,6 +50,8 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     /// @notice Emitted when a name is created at any level
     event SubnodeCreated(bytes32 indexed node, bytes name, address owner);
 
+    /// @notice Emitted when a new label is created (ENSIP-16)
+    event NewSubname(bytes32 indexed labelhash, string label);
 
     event RegistrarAdded(address registrar);
     event RegistrarRemoved(address registrar);
@@ -107,6 +110,16 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         // Registry
         baseNode = node;
         names[baseNode] = dnsEncodedName;
+
+        // Extract the label
+        strings.slice memory s = strings.toSlice(tokenName);
+        strings.slice memory delim = strings.toSlice(".");
+        string memory label = strings.toString(strings.split(s, delim));
+        bytes32 labelhash = keccak256(bytes(label));
+
+        // Mint the base node to the admin
+        emit SubnodeCreated(node, dnsEncodedName, admin);
+        emit NewSubname(labelhash, label);
         _safeMint(admin, uint256(node));
         totalSupply++;
     }
@@ -142,6 +155,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         totalSupply++;
 
         emit SubnodeCreated(subnode, dnsEncodedName, _owner);
+        emit NewSubname(labelhash, label);
         return subnode;
     }
 
@@ -230,9 +244,13 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev Adds a label to its parent DNS-encoded name
+    /// @param label The label to add
+    /// @param parentName The parent DNS-encoded name
+    /// @return ret The resulting DNS-encoded name
     function _addLabel(
         string memory label,
-        bytes memory _name
+        bytes memory parentName
     ) private pure returns (bytes memory ret) {
         if (bytes(label).length < 1) {
             revert LabelTooShort();
@@ -240,7 +258,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         if (bytes(label).length > 255) {
             revert LabelTooLong(label);
         }
-        return abi.encodePacked(uint8(bytes(label).length), label, _name);
+        return abi.encodePacked(uint8(bytes(label).length), label, parentName);
     }
 
     function _onlyOwner() internal view {
