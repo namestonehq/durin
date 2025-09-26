@@ -49,13 +49,6 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     /// @notice Emitted when a name is created at any level
     event SubnodeCreated(bytes32 indexed node, bytes name, address owner);
 
-    /// @notice Emitted when a subnode is registered at any level
-    /// @dev Same event signature as the ENS Registry
-    event NewOwner(
-        bytes32 indexed parentNode,
-        bytes32 indexed labelhash,
-        address owner
-    );
 
     event RegistrarAdded(address registrar);
     event RegistrarRemoved(address registrar);
@@ -148,7 +141,6 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         names[subnode] = dnsEncodedName;
         totalSupply++;
 
-        emit NewOwner(node, labelhash, _owner);
         emit SubnodeCreated(subnode, dnsEncodedName, _owner);
         return subnode;
     }
