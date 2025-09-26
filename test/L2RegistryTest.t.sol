@@ -28,6 +28,9 @@ contract L2RegistryTest is Test {
 
     event BaseURIUpdated(string baseURI);
 
+    /// @notice Emitted when a new subname is registered, ENSIP-X
+    event NewSubname(bytes32 indexed labelhash, string label);
+
     function setUp() public {
         vm.startPrank(admin);
 
@@ -38,6 +41,11 @@ contract L2RegistryTest is Test {
         factory = new L2RegistryFactory(address(new L2Registry()));
 
         // Deploy registry through factory with default parameters
+        vm.expectEmit();
+        emit NewSubname(
+            0x53efe8e9c86b9b419daae472d86e63ed903fc7732a3117b6b2c1beabc5acb984,
+            "testname"
+        );
         registry = L2Registry(factory.deployRegistry("testname.eth"));
         registrar = new MockRegistrar(address(registry));
 
