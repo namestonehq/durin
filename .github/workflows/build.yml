@@ -1,0 +1,32 @@
+name: Build
+
+on:
+  push:
+    paths:
+      - 'gateway/**'
+  pull_request:
+    paths:
+      - 'gateway/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Gateway
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: gateway
+        run: bun install --frozen-lockfile
+
+      - name: Build gateway
+        working-directory: gateway
+        run: bun run build
