@@ -1,4 +1,4 @@
-name: Build Gateway
+name: Build
 
 on:
   push:
@@ -10,8 +10,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-gateway:
-    name: Build Gateway
+  build:
+    name: Gateway
     runs-on: ubuntu-latest
 
     steps:
