@@ -40,11 +40,7 @@ interface INameWrapper {
 /// @author NameStone
 /// @notice ENS resolver that directs all queries to a CCIP Read gateway.
 /// @dev Callers must implement EIP-3668 and ENSIP-10.
-contract L1Resolver is
-    IExtendedResolver,
-    Ownable,
-    IOffchainResolverMetadataProvider
-{
+contract L1Resolver is IExtendedResolver, Ownable {
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
