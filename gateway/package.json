@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "bun --watch src/index.ts",
+    "build": "tsc --outDir ./out",
     "start": "bun src/index.ts"
   },
   "devDependencies": {
     "@trivago/prettier-plugin-sort-imports": "^5.2.2",
+    "@types/bun": "^1.2.22",
     "prettier": "3.5.3"
   },
   "dependencies": {
