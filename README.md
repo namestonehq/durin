@@ -81,7 +81,7 @@ This repo includes all of the smart contract (L1 and L2) required to enable subn
 | Base               | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://basescan.org/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)                  |
 | Base Sepolia       | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://sepolia.basescan.org/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)          |
 | Celo               | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://celoscan.io/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)                   |
-| Celo Alfajores     | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://alfajores.celoscan.io/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)         |
+| Celo Sepolia       | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://celo-sepolia.blockscout.com/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)   |
 | Linea              | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://lineascan.build/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)               |
 | Linea Sepolia      | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://sepolia.lineascan.build/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)       |
 | Optimism           | [`0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d`](https://optimistic.etherscan.io/address/0xDddddDdDDD8Aa1f237b4fa0669cb46892346d22d)       |
