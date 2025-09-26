@@ -40,7 +40,11 @@ interface INameWrapper {
 /// @author NameStone
 /// @notice ENS resolver that directs all queries to a CCIP Read gateway.
 /// @dev Callers must implement EIP-3668 and ENSIP-10.
-contract L1Resolver is IExtendedResolver, Ownable {
+contract L1Resolver is
+    IExtendedResolver,
+    Ownable,
+    IOffchainResolverMetadataProvider
+{
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -61,6 +65,7 @@ contract L1Resolver is IExtendedResolver, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     string public url;
+    string public graphqlUrl;
     address public signer;
     INameWrapper public immutable nameWrapper;
 
@@ -76,6 +81,7 @@ contract L1Resolver is IExtendedResolver, Ownable {
         address targetRegistryAddress
     );
     event GatewayChanged(string url);
+    event GraphqlUrlChanged(string graphqlUrl);
     event SignerChanged(address signer);
 
     /*//////////////////////////////////////////////////////////////
@@ -147,27 +153,7 @@ contract L1Resolver is IExtendedResolver, Ownable {
         bytes calldata name,
         bytes calldata data
     ) external view override returns (bytes memory) {
-        string memory decodedName = NameCoder.decode(name); // 'sub.name.eth'
-        strings.slice memory s = strings.toSlice(decodedName);
-        strings.slice memory delim = strings.toSlice(".");
-        string[] memory parts = new string[](strings.count(s, delim) + 1);
-
-        // Populate the parts array into ['sub', 'name', 'eth']
-        for (uint i = 0; i < parts.length; i++) {
-            parts[i] = strings.toString(strings.split(s, delim));
-        }
-
-        // get the 2LD + TLD (final 2 parts), regardless of how many labels the name has
-        string memory parentName = string.concat(
-            parts[parts.length - 2],
-            ".",
-            parts[parts.length - 1]
-        );
-
-        // Encode the parent name
-        bytes memory parentNameBytes = NameCoder.encode(parentName);
-        bytes32 parentNode = NameCoder.namehash(parentNameBytes, 0);
-
+        bytes32 parentNode = getParentNode(name);
         L2Registry memory targetL2Registry = l2Registry[parentNode];
 
         // If the calldata is intended for `getOperationHandler()`, throw the ERC-7884 error
@@ -204,6 +190,33 @@ contract L1Resolver is IExtendedResolver, Ownable {
         return result;
     }
 
+    /// @notice Returns metadata for discovering the location of offchain name data
+    /// @dev Implements ENSIP-16
+    /// @param name DNS-encoded name to query
+    /// @return graphql The GraphQL endpoint for querying offchain data
+    /// @return chainId The chain ID where the data is stored (0 for non-EVM sources)
+    /// @return l2RegistryAddress The root registry address on the target chain
+    function metadata(
+        bytes calldata name
+    )
+        external
+        view
+        returns (
+            string memory graphql,
+            uint256 chainId,
+            address l2RegistryAddress
+        )
+    {
+        bytes32 parentNode = getParentNode(name);
+        L2Registry memory targetL2Registry = l2Registry[parentNode];
+
+        return (
+            graphqlUrl,
+            targetL2Registry.chainId,
+            targetL2Registry.registryAddress
+        );
+    }
+
     function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
         return
             interfaceId == type(IExtendedResolver).interfaceId ||
@@ -218,6 +231,12 @@ contract L1Resolver is IExtendedResolver, Ownable {
     function setURL(string calldata _url) external onlyOwner {
         url = _url;
         emit GatewayChanged(_url);
+    }
+
+    /// @notice Sets the GraphQL URL for the resolver service.
+    function setGraphqlUrl(string calldata _graphqlUrl) external onlyOwner {
+        graphqlUrl = _graphqlUrl;
+        emit GraphqlUrlChanged(_graphqlUrl);
     }
 
     /// @notice Sets the signers for the resolver service.
@@ -255,5 +274,31 @@ contract L1Resolver is IExtendedResolver, Ownable {
             L1Resolver.resolveWithProof.selector, // callbackFunction
             callData // extraData
         );
+    }
+
+    function getParentNode(
+        bytes calldata name
+    ) internal pure returns (bytes32) {
+        string memory decodedName = NameCoder.decode(name); // 'sub.name.eth'
+        strings.slice memory s = strings.toSlice(decodedName);
+        strings.slice memory delim = strings.toSlice(".");
+        string[] memory parts = new string[](strings.count(s, delim) + 1);
+
+        // Populate the parts array into ['sub', 'name', 'eth']
+        for (uint i = 0; i < parts.length; i++) {
+            parts[i] = strings.toString(strings.split(s, delim));
+        }
+
+        // Get the 2LD + TLD (final 2 parts), regardless of how many labels the name has
+        string memory parentName = string.concat(
+            parts[parts.length - 2],
+            ".",
+            parts[parts.length - 1]
+        );
+
+        // Encode the parent name
+        bytes memory parentNameBytes = NameCoder.encode(parentName);
+        bytes32 parentNode = NameCoder.namehash(parentNameBytes, 0);
+        return parentNode;
     }
 }
