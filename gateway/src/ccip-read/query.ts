@@ -82,9 +82,12 @@ export async function handleQuery({
       // There's an Alchemy issue with Worldchain Sepolia when using API keys, so we'll use the public endpoint for now
       chain.id === worldchainSepolia.id
         ? 'https://worldchain-sepolia.g.alchemy.com/public'
-        : ALCHEMY_API_KEY
-          ? alchemy(chain.id, ALCHEMY_API_KEY)
-          : undefined
+        : chain.id === celoSepolia.id
+          ? // Temporary fix
+            'https://lb.drpc.org/celo-sepolia/Ari_kElGqUKLsEudIEgtHTm-Dzhsm7cR8L7Qwg8TMB_n'
+          : ALCHEMY_API_KEY
+            ? alchemy(chain.id, ALCHEMY_API_KEY)
+            : undefined
     ),
   })
 
