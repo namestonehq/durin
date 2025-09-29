@@ -71,14 +71,21 @@ contract L1Resolver is IExtendedResolver, Ownable {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event L2RegistrySet(
-        bytes32 node,
-        uint64 targetChainId,
-        address targetRegistryAddress
-    );
     event GatewayChanged(string url);
     event GraphqlUrlChanged(string graphqlUrl);
     event SignerChanged(address signer);
+
+    /// @dev Emitted when the metadata for a name is changed (ENSIP-16)
+    /// @param name DNS-encoded name
+    /// @param graphqlUrl GraphQL endpoint for offchain data
+    /// @param chainId Chain identifier (0 for non-EVM sources)
+    /// @param l2RegistryAddress Root registry address on target chain
+    event MetadataChanged(
+        bytes name,
+        string graphqlUrl,
+        uint256 chainId,
+        address l2RegistryAddress
+    );
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -121,12 +128,17 @@ contract L1Resolver is IExtendedResolver, Ownable {
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Specify the L2 registry for a given name. Should only be used with 2LDs, e.g. "nick.eth".
+    /// @notice Specify the L2 registry for a given name
+    /// @dev Should only be used with 2LDs, e.g. "nick.eth".
+    /// @param name DNS-encoded name
+    /// @param targetChainId Chain identifier
+    /// @param targetRegistryAddress Registry address on target chain
     function setL2Registry(
-        bytes32 node,
+        bytes calldata name,
         uint64 targetChainId,
         address targetRegistryAddress
     ) external {
+        bytes32 node = NameCoder.namehash(name, 0);
         address owner = ens.owner(node);
 
         if (owner == address(nameWrapper)) {
@@ -138,7 +150,12 @@ contract L1Resolver is IExtendedResolver, Ownable {
         }
 
         l2Registry[node] = L2Registry(targetChainId, targetRegistryAddress);
-        emit L2RegistrySet(node, targetChainId, targetRegistryAddress);
+        emit MetadataChanged(
+            name,
+            graphqlUrl,
+            targetChainId,
+            targetRegistryAddress
+        );
     }
 
     /// @notice Resolves a name, as specified by ENSIP 10.
