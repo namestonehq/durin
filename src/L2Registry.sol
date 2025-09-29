@@ -184,7 +184,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         string calldata label
     ) public pure returns (bytes32) {
         bytes32 labelhash = keccak256(bytes(label));
-        return keccak256(abi.encodePacked(parentNode, labelhash));
+        return NameCoder.namehash(parentNode, labelhash);
     }
 
     /// @notice The admin of the registry
