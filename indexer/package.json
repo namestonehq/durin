@@ -12,9 +12,10 @@
     "typecheck": "tsc"
   },
   "dependencies": {
+    "@ponder/utils": "^0.2.13",
     "evm-providers": "^0.5.8",
     "hono": "^4.5.0",
-    "ponder": "^0.13.7",
+    "ponder": "^0.13.8",
     "viem": "^2.21.3"
   },
   "devDependencies": {

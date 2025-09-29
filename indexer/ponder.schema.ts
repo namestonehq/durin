@@ -23,11 +23,11 @@ export const domainRelations = relations(domain, ({ one }) => ({
 
 export const l2Domain = onchainTable('l2Domain', (t) => ({
   id: t.text().primaryKey(), // concatenation of context and namehash delimited by `-`
-  context: t.bytes(),
+  context: t.hex(),
   name: t.text(),
-  namehash: t.bytes(),
+  namehash: t.hex(),
   labelName: t.text(),
-  labelhash: t.bytes(),
+  labelhash: t.hex(),
   resolvedAddress: t.hex(), // addr(60)
   // parent (from relation)
   // subdomains (from relation)
@@ -54,12 +54,12 @@ export const l2DomainSubdomains = relations(l2Domain, ({ one }) => ({
 
 export const resolver = onchainTable('resolver', (t) => ({
   id: t.text().primaryKey(),
-  node: t.bytes(),
-  context: t.bytes(),
+  node: t.hex(),
+  context: t.hex(),
   address: t.hex(),
   // domain (from relation)
   addr: t.hex(),
-  contentHash: t.bytes(),
+  contentHash: t.hex(),
   texts: t.text().array(),
   coinTypes: t.bigint().array(),
 }))

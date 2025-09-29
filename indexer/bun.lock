@@ -4,9 +4,10 @@
     "": {
       "name": "indexer",
       "dependencies": {
+        "@ponder/utils": "^0.2.13",
         "evm-providers": "^0.5.8",
         "hono": "^4.5.0",
-        "ponder": "^0.13.7",
+        "ponder": "^0.13.8",
         "viem": "^2.21.3",
       },
       "devDependencies": {
@@ -558,7 +559,7 @@
 
     "pino-std-serializers": ["pino-std-serializers@6.2.2", "", {}, "sha512-cHjPPsE+vhj/tnhCy/wiMh3M3z3h/j15zHQX+S9GkTBgqJuTuJzYJ4gUyACLhDaJ7kk9ba9iRDmbH2tJU03OiA=="],
 
-    "ponder": ["ponder@0.13.7", "", { "dependencies": { "@babel/code-frame": "^7.23.4", "@commander-js/extra-typings": "^12.0.1", "@electric-sql/pglite": "0.2.13", "@escape.tech/graphql-armor-max-aliases": "^2.3.0", "@escape.tech/graphql-armor-max-depth": "^2.2.0", "@escape.tech/graphql-armor-max-tokens": "^2.3.0", "@hono/node-server": "1.13.3", "@ponder/utils": "0.2.13", "abitype": "^0.10.2", "ansi-escapes": "^7.0.0", "commander": "^12.0.0", "conf": "^12.0.0", "dataloader": "^2.2.2", "detect-package-manager": "^3.0.2", "dotenv": "^16.3.1", "drizzle-orm": "0.41.0", "glob": "^10.3.10", "graphql": "^16.8.1", "graphql-yoga": "^5.3.0", "http-terminator": "^3.2.0", "kysely": "^0.26.3", "pg": "^8.11.3", "pg-connection-string": "^2.6.2", "pg-copy-streams": "^6.0.6", "pg-query-emscripten": "5.1.0", "picocolors": "^1.1.1", "pino": "^8.16.2", "prom-client": "^15.0.0", "semver": "^7.7.1", "stacktrace-parser": "^0.1.10", "superjson": "^2.2.2", "terminal-size": "^4.0.0", "vite": "5.0.7", "vite-node": "1.0.2", "vite-tsconfig-paths": "4.3.1", "ws": "^8.18.3" }, "peerDependencies": { "hono": ">=4.5", "typescript": ">=5.0.4", "viem": ">=2" }, "optionalPeers": ["typescript"], "bin": { "ponder": "dist/esm/bin/ponder.js" } }, "sha512-IGQJKQYQT2vy+0ipoYcw9yDgxhNredkUaGslJ2Roh+hVrPl2hFgemVGLvus0jFi5VYgQoS7rsq0OzzZB746i+g=="],
+    "ponder": ["ponder@0.13.8", "", { "dependencies": { "@babel/code-frame": "^7.23.4", "@commander-js/extra-typings": "^12.0.1", "@electric-sql/pglite": "0.2.13", "@escape.tech/graphql-armor-max-aliases": "^2.3.0", "@escape.tech/graphql-armor-max-depth": "^2.2.0", "@escape.tech/graphql-armor-max-tokens": "^2.3.0", "@hono/node-server": "1.13.3", "@ponder/utils": "0.2.13", "abitype": "^0.10.2", "ansi-escapes": "^7.0.0", "commander": "^12.0.0", "conf": "^12.0.0", "dataloader": "^2.2.2", "detect-package-manager": "^3.0.2", "dotenv": "^16.3.1", "drizzle-orm": "0.41.0", "glob": "^10.3.10", "graphql": "^16.8.1", "graphql-yoga": "^5.3.0", "http-terminator": "^3.2.0", "kysely": "^0.26.3", "pg": "^8.11.3", "pg-connection-string": "^2.6.2", "pg-copy-streams": "^6.0.6", "pg-query-emscripten": "5.1.0", "picocolors": "^1.1.1", "pino": "^8.16.2", "prom-client": "^15.0.0", "semver": "^7.7.1", "stacktrace-parser": "^0.1.10", "superjson": "^2.2.2", "terminal-size": "^4.0.0", "vite": "5.0.7", "vite-node": "1.0.2", "vite-tsconfig-paths": "4.3.1", "ws": "^8.18.3" }, "peerDependencies": { "hono": ">=4.5", "typescript": ">=5.0.4", "viem": ">=2" }, "optionalPeers": ["typescript"], "bin": { "ponder": "dist/esm/bin/ponder.js" } }, "sha512-Eqj4ZBpft6/WOZdbW1XIVoUsrdMtfZMEtfX7P4wBgqc1YCSHCOFtQmLUB2QxAe/Qw+sO+eiCCk+BDCCMEXlOYA=="],
 
     "postcss": ["postcss@8.5.6", "", { "dependencies": { "nanoid": "^3.3.11", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-3Ybi1tAuwAP9s0r1UQ2J4n5Y0G05bJkpUIO0/bI9MhwmD70S5aTWbXGBwxHrelT+XM1k6dM0pk+SwNkpTRN7Pg=="],
 

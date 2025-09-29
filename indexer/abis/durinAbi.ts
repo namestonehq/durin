@@ -1,6 +1,16 @@
 export const durinAbi = [
   { inputs: [], stateMutability: 'nonpayable', type: 'constructor' },
   {
+    inputs: [{ internalType: 'bytes', name: 'dns', type: 'bytes' }],
+    name: 'DNSDecodingFailed',
+    type: 'error',
+  },
+  {
+    inputs: [{ internalType: 'string', name: 'ens', type: 'string' }],
+    name: 'DNSEncodingFailed',
+    type: 'error',
+  },
+  {
     inputs: [
       { internalType: 'address', name: 'sender', type: 'address' },
       { internalType: 'uint256', name: 'tokenId', type: 'uint256' },
@@ -47,8 +57,12 @@ export const durinAbi = [
     name: 'ERC721NonexistentToken',
     type: 'error',
   },
+  {
+    inputs: [{ internalType: 'bytes', name: 'addressBytes', type: 'bytes' }],
+    name: 'InvalidEVMAddress',
+    type: 'error',
+  },
   { inputs: [], name: 'InvalidInitialization', type: 'error' },
-  { inputs: [], name: 'InvalidName', type: 'error' },
   {
     inputs: [{ internalType: 'string', name: 'label', type: 'string' }],
     name: 'LabelTooLong',
@@ -199,23 +213,12 @@ export const durinAbi = [
       {
         indexed: true,
         internalType: 'bytes32',
-        name: 'parentNode',
-        type: 'bytes32',
-      },
-      {
-        indexed: true,
-        internalType: 'bytes32',
         name: 'labelhash',
         type: 'bytes32',
       },
-      {
-        indexed: false,
-        internalType: 'address',
-        name: 'owner',
-        type: 'address',
-      },
+      { indexed: false, internalType: 'string', name: 'label', type: 'string' },
     ],
-    name: 'NewOwner',
+    name: 'NewSubname',
     type: 'event',
   },
   {
@@ -337,7 +340,7 @@ export const durinAbi = [
       { internalType: 'uint256', name: 'coinType', type: 'uint256' },
     ],
     name: 'addr',
-    outputs: [{ internalType: 'bytes', name: '', type: 'bytes' }],
+    outputs: [{ internalType: 'bytes', name: 'addressBytes', type: 'bytes' }],
     stateMutability: 'view',
     type: 'function',
   },
@@ -402,6 +405,16 @@ export const durinAbi = [
     inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
     name: 'getApproved',
     outputs: [{ internalType: 'address', name: '', type: 'address' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'bytes32', name: 'node', type: 'bytes32' },
+      { internalType: 'uint256', name: 'coinType', type: 'uint256' },
+    ],
+    name: 'hasAddr',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
     stateMutability: 'view',
     type: 'function',
   },
@@ -579,7 +592,7 @@ export const durinAbi = [
     inputs: [
       { internalType: 'bytes32', name: 'node', type: 'bytes32' },
       { internalType: 'uint256', name: 'coinType', type: 'uint256' },
-      { internalType: 'bytes', name: 'a', type: 'bytes' },
+      { internalType: 'bytes', name: 'addressBytes', type: 'bytes' },
     ],
     name: 'setAddr',
     outputs: [],
@@ -589,7 +602,7 @@ export const durinAbi = [
   {
     inputs: [
       { internalType: 'bytes32', name: 'node', type: 'bytes32' },
-      { internalType: 'address', name: 'a', type: 'address' },
+      { internalType: 'address', name: '_addr', type: 'address' },
     ],
     name: 'setAddr',
     outputs: [],
