@@ -1,15 +1,15 @@
 import { ponder } from 'ponder:registry'
 import { l2Domain, registryDeployedEvent, resolver } from 'ponder:schema'
 import { namehash } from 'viem'
-import { makeNode } from './lib/utils'
+import { dnsDecodeName, makeNode } from './lib/utils'
 
-ponder.on('durin:NewSubname', async ({ event, context }) => {
+ponder.on('durin:SubnodeCreated', async ({ event, context }) => {
   const registry = event.log.address
-  const parent = await context.db.find(registryDeployedEvent, { registry })
+  // const parent = await context.db.find(registryDeployedEvent, { registry })
 
-  if (!parent) {
-    throw new Error('Parent registry not found')
-  }
+  // if (!parent) {
+  //   throw new Error('Parent registry not found')
+  // }
 
   // await context.db.insert(l2Domain).values({
   //   id: event.id,
@@ -23,10 +23,8 @@ ponder.on('durin:NewSubname', async ({ event, context }) => {
   //   expiryDate: undefined,
   // })
 
-  const node = makeNode({
-    parentNode: namehash(parent.name),
-    labelHash: event.args.labelhash,
-  })
+  const name = dnsDecodeName(event.args.name)
+  const node = namehash(name)
 
   await context.db.insert(resolver).values({
     node,
