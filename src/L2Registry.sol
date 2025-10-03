@@ -149,13 +149,14 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
             revert NotAvailable(label, node);
         }
 
+        emit SubnodeCreated(subnode, dnsEncodedName, _owner);
+        emit NewSubname(labelhash, label);
+
         _safeMint(_owner, uint256(subnode));
         _multicall(subnode, data);
         names[subnode] = dnsEncodedName;
         totalSupply++;
 
-        emit SubnodeCreated(subnode, dnsEncodedName, _owner);
-        emit NewSubname(labelhash, label);
         return subnode;
     }
 
