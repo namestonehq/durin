@@ -19,10 +19,12 @@ const viemClient = createPublicClient({
 
 app.get('/name/:name', async (c) => {
   const name = c.req.param('name')
+  const twoLd = name.split('.').slice(0, 2).join('.')
+  const twoLdNode = namehash(twoLd)
   const node = namehash(name)
 
   // Check which resolver the name uses via RPC
-  const resolverAddress = await viemClient.getEnsResolver({ name })
+  const resolverAddress = await viemClient.getEnsResolver({ name: twoLd })
 
   try {
     // Check target chain and registry address via `l2Registry()` or via the latest `MetadataChanged` event
@@ -32,7 +34,7 @@ app.get('/name/:name', async (c) => {
         'function l2Registry(bytes32 node) view returns (uint64, address)',
       ]),
       functionName: 'l2Registry',
-      args: [node],
+      args: [twoLdNode],
     })
 
     // Find the available records for the name via the indexer
