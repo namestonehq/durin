@@ -20,7 +20,7 @@ const viemClient = createPublicClient({
 
 app.get('/name/:name', async (c) => {
   const name = c.req.param('name')
-  const twoLd = name.split('.').slice(0, 2).join('.')
+  const twoLd = name.split('.').slice(-2).join('.')
   const twoLdNode = namehash(twoLd)
   const node = namehash(name)
 
