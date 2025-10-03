@@ -3,7 +3,7 @@ import schema, { resolver } from 'ponder:schema'
 import { Hono } from 'hono'
 import { and, client, eq, graphql } from 'ponder'
 import { createPublicClient, http, namehash, parseAbi } from 'viem'
-import { mainnet } from 'viem/chains'
+import { mainnet, sepolia } from 'viem/chains'
 
 const app = new Hono()
 
@@ -13,7 +13,7 @@ app.use('/', graphql({ db, schema }))
 app.use('/graphql', graphql({ db, schema }))
 
 const viemClient = createPublicClient({
-  chain: mainnet,
+  chain: sepolia,
   transport: http(process.env.RPC_URL),
 })
 
