@@ -24,23 +24,28 @@ app.get('/name/:name', async (c) => {
   // Check which resolver the name uses via RPC
   const resolverAddress = await viemClient.getEnsResolver({ name })
 
-  // Check target chain and registry address via `l2Registry()` or via the latest `MetadataChanged` event
-  const [, l2Registry] = await viemClient.readContract({
-    address: resolverAddress,
-    abi: parseAbi([
-      'function l2Registry(bytes32 node) view returns (uint64, address)',
-    ]),
-    functionName: 'l2Registry',
-    args: [node],
-  })
+  try {
+    // Check target chain and registry address via `l2Registry()` or via the latest `MetadataChanged` event
+    const [, l2Registry] = await viemClient.readContract({
+      address: resolverAddress,
+      abi: parseAbi([
+        'function l2Registry(bytes32 node) view returns (uint64, address)',
+      ]),
+      functionName: 'l2Registry',
+      args: [node],
+    })
 
-  // Find the available records for the name via the indexer
-  const records = await db
-    .select()
-    .from(resolver)
-    .where(and(eq(resolver.node, node), eq(resolver.address, l2Registry)))
+    // Find the available records for the name via the indexer
+    const records = await db
+      .select()
+      .from(resolver)
+      .where(and(eq(resolver.node, node), eq(resolver.address, l2Registry)))
 
-  return c.json(records)
+    return c.json(records)
+  } catch (error) {
+    console.error(error)
+    return c.json({ error: 'Name does not appear to use Durin' }, 400)
+  }
 })
 
 export default app
