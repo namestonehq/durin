@@ -4,6 +4,7 @@ import { Hono } from 'hono'
 import { and, client, eq, graphql } from 'ponder'
 import { createPublicClient, http, namehash, parseAbi } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
+import { replaceBigInts } from '@ponder/utils'
 
 const app = new Hono()
 
@@ -43,7 +44,7 @@ app.get('/name/:name', async (c) => {
       .from(resolver)
       .where(and(eq(resolver.node, node), eq(resolver.address, l2Registry)))
 
-    return c.json(records)
+    return c.json(replaceBigInts(records, (v) => v.toString()))
   } catch (error) {
     console.error(error)
     return c.json({ error: 'Name does not appear to use Durin' }, 400)
