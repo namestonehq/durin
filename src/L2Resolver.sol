@@ -10,7 +10,7 @@ pragma solidity ^0.8.20;
 
 import {ABIResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ABIResolver.sol";
 import {AddrResolver} from "@ensdomains/ens-contracts/resolvers/profiles/AddrResolver.sol";
-import {COIN_TYPE_DEFAULT} from "@ensdomains/ens-contracts/utils/ENSIP19.sol";
+import {COIN_TYPE_DEFAULT, ENSIP19} from "@ensdomains/ens-contracts/utils/ENSIP19.sol";
 import {ContentHashResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ContentHashResolver.sol";
 import {ExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ExtendedResolver.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
@@ -169,7 +169,9 @@ contract L2Resolver is
         addressBytes = super.addr(node, coinType);
 
         // Lookup default EVM address if no address is found
-        if (addressBytes.length == 0) {
+        if (
+            addressBytes.length == 0 && ENSIP19.chainFromCoinType(coinType) > 0
+        ) {
             addressBytes = super.addr(node, COIN_TYPE_DEFAULT);
         }
     }
