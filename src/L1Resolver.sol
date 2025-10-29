@@ -61,7 +61,7 @@ contract L1Resolver is IExtendedResolver, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     string public url;
-    string public graphqlUrl;
+    string public metadataUrl;
     address public signer;
     INameWrapper public immutable nameWrapper;
 
@@ -72,17 +72,17 @@ contract L1Resolver is IExtendedResolver, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     event GatewayChanged(string url);
-    event GraphqlUrlChanged(string graphqlUrl);
+    event MetadataUrlChanged(string metadataUrl);
     event SignerChanged(address signer);
 
     /// @dev Emitted when the metadata for a name is changed (ENSIP-16)
-    /// @param name DNS-encoded name
-    /// @param graphqlUrl GraphQL endpoint for offchain data
-    /// @param chainId Chain identifier (0 for non-EVM sources)
-    /// @param l2RegistryAddress Root registry address on target chain
+    /// @param name DNS-encoded name to query
+    /// @param urls URLs for querying offchain data
+    /// @param chainId The chain ID where the data is stored (0 for non-EVM sources)
+    /// @param l2RegistryAddress The base registry address on the target chain that emits events
     event MetadataChanged(
         bytes name,
-        string graphqlUrl,
+        string[] urls,
         uint256 chainId,
         address l2RegistryAddress
     );
@@ -155,7 +155,7 @@ contract L1Resolver is IExtendedResolver, Ownable {
         });
         emit MetadataChanged(
             name,
-            graphqlUrl,
+            metadataUrl,
             targetChainId,
             targetRegistryAddress
         );
@@ -206,28 +206,24 @@ contract L1Resolver is IExtendedResolver, Ownable {
         return result;
     }
 
-    /// @notice Returns metadata for discovering the location of offchain name data
-    /// @dev Implements ENSIP-16
-    /// @param name DNS-encoded name to query
-    /// @return graphql The GraphQL endpoint for querying offchain data
-    /// @return chainId The chain ID where the data is stored (0 for non-EVM sources)
-    /// @return l2RegistryAddress The root registry address on the target chain
+    /// @notice Returns metadata for discovering the location of offchain name data.
+    /// @dev Event signature is defined in ENSIP-16.
+    /// @param name DNS-encoded name to query.
+    /// @return urls The URLs for querying offchain data.
+    /// @return chainId The chain ID where the data is stored.
+    /// @return l2RegistryAddress The base registry address on the target chain that emits events.
     function metadata(
         bytes calldata name
     )
         external
         view
-        returns (
-            string memory graphql,
-            uint256 chainId,
-            address l2RegistryAddress
-        )
+        returns (string memory urls, uint256 chainId, address l2RegistryAddress)
     {
         bytes32 parentNode = getParentNode(name);
         L2Registry memory targetL2Registry = l2Registry[parentNode];
 
         return (
-            graphqlUrl,
+            metadataUrl,
             targetL2Registry.chainId,
             targetL2Registry.registryAddress
         );
@@ -249,10 +245,10 @@ contract L1Resolver is IExtendedResolver, Ownable {
         emit GatewayChanged(_url);
     }
 
-    /// @notice Sets the GraphQL URL for the resolver service.
-    function setGraphqlUrl(string calldata _graphqlUrl) external onlyOwner {
-        graphqlUrl = _graphqlUrl;
-        emit GraphqlUrlChanged(_graphqlUrl);
+    /// @notice Sets the metadata URL for the resolver service.
+    function setMetadataUrl(string calldata _metadataUrl) external onlyOwner {
+        metadataUrl = _metadataUrl;
+        emit MetadataUrlChanged(_metadataUrl);
     }
 
     /// @notice Sets the signers for the resolver service.
