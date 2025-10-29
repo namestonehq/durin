@@ -155,7 +155,7 @@ contract L1Resolver is IExtendedResolver, Ownable {
         });
         emit MetadataChanged(
             name,
-            metadataUrl,
+            metadataUrls(),
             targetChainId,
             targetRegistryAddress
         );
@@ -217,13 +217,17 @@ contract L1Resolver is IExtendedResolver, Ownable {
     )
         external
         view
-        returns (string memory urls, uint256 chainId, address l2RegistryAddress)
+        returns (
+            string[] memory urls,
+            uint256 chainId,
+            address l2RegistryAddress
+        )
     {
         bytes32 parentNode = getParentNode(name);
         L2Registry memory targetL2Registry = l2Registry[parentNode];
 
         return (
-            metadataUrl,
+            metadataUrls(),
             targetL2Registry.chainId,
             targetL2Registry.registryAddress
         );
@@ -312,5 +316,11 @@ contract L1Resolver is IExtendedResolver, Ownable {
         bytes memory parentNameBytes = NameCoder.encode(parentName);
         bytes32 parentNode = NameCoder.namehash(parentNameBytes, 0);
         return parentNode;
+    }
+
+    function metadataUrls() internal view returns (string[] memory) {
+        string[] memory urls = new string[](1);
+        urls[0] = metadataUrl;
+        return urls;
     }
 }
