@@ -61,6 +61,7 @@ contract L1Resolver is IExtendedResolver, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     string public url;
+    string public metadataUrl;
     address public signer;
     INameWrapper public immutable nameWrapper;
 
@@ -70,13 +71,21 @@ contract L1Resolver is IExtendedResolver, Ownable {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event L2RegistrySet(
-        bytes32 node,
-        uint64 targetChainId,
-        address targetRegistryAddress
-    );
     event GatewayChanged(string url);
+    event MetadataUrlChanged(string metadataUrl);
     event SignerChanged(address signer);
+
+    /// @dev Emitted when the metadata for a name is changed (ENSIP-16)
+    /// @param name DNS-encoded name to query
+    /// @param urls URLs for querying offchain data
+    /// @param chainId The chain ID where the data is stored (0 for non-EVM sources)
+    /// @param l2RegistryAddress The base registry address on the target chain that emits events
+    event MetadataChanged(
+        bytes name,
+        string[] urls,
+        uint256 chainId,
+        address l2RegistryAddress
+    );
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -119,12 +128,17 @@ contract L1Resolver is IExtendedResolver, Ownable {
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Specify the L2 registry for a given name. Should only be used with 2LDs, e.g. "nick.eth".
+    /// @notice Specify the L2 registry for a given name
+    /// @dev Should only be used with 2LDs, e.g. "nick.eth".
+    /// @param name DNS-encoded name
+    /// @param targetChainId Chain identifier
+    /// @param targetRegistryAddress Registry address on target chain
     function setL2Registry(
-        bytes32 node,
+        bytes calldata name,
         uint64 targetChainId,
         address targetRegistryAddress
     ) external {
+        bytes32 node = NameCoder.namehash(name, 0);
         address owner = ens.owner(node);
 
         if (owner == address(nameWrapper)) {
@@ -135,8 +149,16 @@ contract L1Resolver is IExtendedResolver, Ownable {
             revert Unauthorized();
         }
 
-        l2Registry[node] = L2Registry(targetChainId, targetRegistryAddress);
-        emit L2RegistrySet(node, targetChainId, targetRegistryAddress);
+        l2Registry[node] = L2Registry({
+            chainId: targetChainId,
+            registryAddress: targetRegistryAddress
+        });
+        emit MetadataChanged(
+            name,
+            metadataUrls(),
+            targetChainId,
+            targetRegistryAddress
+        );
     }
 
     /// @notice Resolves a name, as specified by ENSIP 10.
@@ -147,27 +169,7 @@ contract L1Resolver is IExtendedResolver, Ownable {
         bytes calldata name,
         bytes calldata data
     ) external view override returns (bytes memory) {
-        string memory decodedName = NameCoder.decode(name); // 'sub.name.eth'
-        strings.slice memory s = strings.toSlice(decodedName);
-        strings.slice memory delim = strings.toSlice(".");
-        string[] memory parts = new string[](strings.count(s, delim) + 1);
-
-        // Populate the parts array into ['sub', 'name', 'eth']
-        for (uint i = 0; i < parts.length; i++) {
-            parts[i] = strings.toString(strings.split(s, delim));
-        }
-
-        // get the 2LD + TLD (final 2 parts), regardless of how many labels the name has
-        string memory parentName = string.concat(
-            parts[parts.length - 2],
-            ".",
-            parts[parts.length - 1]
-        );
-
-        // Encode the parent name
-        bytes memory parentNameBytes = NameCoder.encode(parentName);
-        bytes32 parentNode = NameCoder.namehash(parentNameBytes, 0);
-
+        bytes32 parentNode = getParentNode(name);
         L2Registry memory targetL2Registry = l2Registry[parentNode];
 
         // If the calldata is intended for `getOperationHandler()`, throw the ERC-7884 error
@@ -204,6 +206,33 @@ contract L1Resolver is IExtendedResolver, Ownable {
         return result;
     }
 
+    /// @notice Returns metadata for discovering the location of offchain name data.
+    /// @dev Event signature is defined in ENSIP-16.
+    /// @param name DNS-encoded name to query.
+    /// @return urls The URLs for querying offchain data.
+    /// @return chainId The chain ID where the data is stored.
+    /// @return l2RegistryAddress The base registry address on the target chain that emits events.
+    function metadata(
+        bytes calldata name
+    )
+        external
+        view
+        returns (
+            string[] memory urls,
+            uint256 chainId,
+            address l2RegistryAddress
+        )
+    {
+        bytes32 parentNode = getParentNode(name);
+        L2Registry memory targetL2Registry = l2Registry[parentNode];
+
+        return (
+            metadataUrls(),
+            targetL2Registry.chainId,
+            targetL2Registry.registryAddress
+        );
+    }
+
     function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
         return
             interfaceId == type(IExtendedResolver).interfaceId ||
@@ -218,6 +247,12 @@ contract L1Resolver is IExtendedResolver, Ownable {
     function setURL(string calldata _url) external onlyOwner {
         url = _url;
         emit GatewayChanged(_url);
+    }
+
+    /// @notice Sets the metadata URL for the resolver service.
+    function setMetadataUrl(string calldata _metadataUrl) external onlyOwner {
+        metadataUrl = _metadataUrl;
+        emit MetadataUrlChanged(_metadataUrl);
     }
 
     /// @notice Sets the signers for the resolver service.
@@ -255,5 +290,37 @@ contract L1Resolver is IExtendedResolver, Ownable {
             L1Resolver.resolveWithProof.selector, // callbackFunction
             callData // extraData
         );
+    }
+
+    function getParentNode(
+        bytes calldata name
+    ) internal pure returns (bytes32) {
+        string memory decodedName = NameCoder.decode(name); // 'sub.name.eth'
+        strings.slice memory s = strings.toSlice(decodedName);
+        strings.slice memory delim = strings.toSlice(".");
+        string[] memory parts = new string[](strings.count(s, delim) + 1);
+
+        // Populate the parts array into ['sub', 'name', 'eth']
+        for (uint i = 0; i < parts.length; i++) {
+            parts[i] = strings.toString(strings.split(s, delim));
+        }
+
+        // Get the 2LD + TLD (final 2 parts), regardless of how many labels the name has
+        string memory parentName = string.concat(
+            parts[parts.length - 2],
+            ".",
+            parts[parts.length - 1]
+        );
+
+        // Encode the parent name
+        bytes memory parentNameBytes = NameCoder.encode(parentName);
+        bytes32 parentNode = NameCoder.namehash(parentNameBytes, 0);
+        return parentNode;
+    }
+
+    function metadataUrls() internal view returns (string[] memory) {
+        string[] memory urls = new string[](1);
+        urls[0] = metadataUrl;
+        return urls;
     }
 }

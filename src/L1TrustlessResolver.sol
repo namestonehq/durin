@@ -121,7 +121,10 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
             revert Unauthorized();
         }
 
-        l2Registry[node] = L2Registry(targetChainId, targetRegistryAddress);
+        l2Registry[node] = L2Registry({
+            chainId: targetChainId,
+            registryAddress: targetRegistryAddress
+        });
         emit L2RegistrySet(node, targetChainId, targetRegistryAddress);
     }
 
