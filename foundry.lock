@@ -1,0 +1,20 @@
+{
+  "lib/ens-contracts": {
+    "rev": "9ff942ce211eeec4734a48b4ac29b047f971b392"
+  },
+  "lib/forge-std": {
+    "rev": "1eea5bae12ae557d589f9f0f0edae2faa47cb262"
+  },
+  "lib/foundry-multichain-deploy": {
+    "rev": "3cd77457741f8c7f41f1a4c1b7c338dce01af84a"
+  },
+  "lib/openzeppelin-contracts": {
+    "rev": "69c8def5f222ff96f2b5beff05dfba996368aa79"
+  },
+  "lib/solidity-stringutils": {
+    "rev": "4b2fcc43fa0426e19ce88b1f1ec16f5903a2e461"
+  },
+  "lib/unruggable-gateways": {
+    "rev": "128a7c6d36f33b51f3c746eddfc76fdd676b1ae3"
+  }
+}

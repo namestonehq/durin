@@ -19,7 +19,7 @@ contract L2RegistryAddress is Script {
         vm.createSelectFork("mainnet");
     }
 
-    function run() public {
+    function run() public view {
         // Set an empty salt to use CREATE2 for a deterministic address
         bytes32 salt = bytes32(0);
         address registryImplementation = create2Deployer.computeAddress(

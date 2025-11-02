@@ -10,6 +10,7 @@ pragma solidity ^0.8.20;
 
 import {ABIResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ABIResolver.sol";
 import {AddrResolver} from "@ensdomains/ens-contracts/resolvers/profiles/AddrResolver.sol";
+import {COIN_TYPE_DEFAULT, ENSIP19} from "@ensdomains/ens-contracts/utils/ENSIP19.sol";
 import {ContentHashResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ContentHashResolver.sol";
 import {ExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ExtendedResolver.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
@@ -159,25 +160,41 @@ contract L2Resolver is
         emit ABIChanged(node, contentType);
     }
 
+    /// Override the inherited function to support default EVM address
+    /// @inheritdoc AddrResolver
+    function addr(
+        bytes32 node,
+        uint256 coinType
+    ) public view override returns (bytes memory addressBytes) {
+        addressBytes = super.addr(node, coinType);
+
+        // Lookup default EVM address if no address is found
+        if (
+            addressBytes.length == 0 && ENSIP19.chainFromCoinType(coinType) > 0
+        ) {
+            addressBytes = super.addr(node, COIN_TYPE_DEFAULT);
+        }
+    }
+
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     function _isAuthorisedForAddress(
-        address addr,
-        bytes32 node
+        address _addr,
+        bytes32 _node
     ) internal view returns (bool) {
         L2Registry registry = _registry();
 
-        if (registry.registrars(addr)) {
+        if (registry.registrars(_addr)) {
             return true;
         }
 
-        uint256 tokenId = uint256(node);
+        uint256 tokenId = uint256(_node);
         address owner = registry.ownerOf(tokenId);
 
-        if ((owner != addr) && (registry.getApproved(tokenId) != addr)) {
-            revert Unauthorized(node);
+        if ((owner != _addr) && (registry.getApproved(tokenId) != _addr)) {
+            revert Unauthorized(_node);
         }
 
         return true;
