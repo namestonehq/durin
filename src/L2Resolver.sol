@@ -77,7 +77,7 @@ contract L2Resolver is
         ).toEthSignedMessageHash();
 
         if (
-            !isAuthorisedForAddress(signer, node) ||
+            !_isAuthorisedForAddress(signer, node) ||
             !universalSignatureValidator.isValidSig(signer, sigHash, signature)
         ) {
             revert Unauthorized(node);
@@ -99,7 +99,7 @@ contract L2Resolver is
         ).toEthSignedMessageHash();
 
         if (
-            !isAuthorisedForAddress(signer, node) ||
+            !_isAuthorisedForAddress(signer, node) ||
             !universalSignatureValidator.isValidSig(signer, sigHash, signature)
         ) {
             revert Unauthorized(node);
@@ -122,7 +122,7 @@ contract L2Resolver is
         ).toEthSignedMessageHash();
 
         if (
-            !isAuthorisedForAddress(signer, node) ||
+            !_isAuthorisedForAddress(signer, node) ||
             !universalSignatureValidator.isValidSig(signer, sigHash, signature)
         ) {
             revert Unauthorized(node);
@@ -146,7 +146,7 @@ contract L2Resolver is
         ).toEthSignedMessageHash();
 
         if (
-            !isAuthorisedForAddress(signer, node) ||
+            !_isAuthorisedForAddress(signer, node) ||
             !universalSignatureValidator.isValidSig(signer, sigHash, signature)
         ) {
             revert Unauthorized(node);
@@ -180,7 +180,7 @@ contract L2Resolver is
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function isAuthorisedForAddress(
+    function _isAuthorisedForAddress(
         address _addr,
         bytes32 _node
     ) internal view returns (bool) {
@@ -216,7 +216,7 @@ contract L2Resolver is
 
     /// @dev Reverts instead of returning false so the modifier that uses this function has better error messages
     function isAuthorised(bytes32 node) internal view override returns (bool) {
-        return isAuthorisedForAddress(msg.sender, node);
+        return _isAuthorisedForAddress(msg.sender, node);
     }
 
     function supportsInterface(
