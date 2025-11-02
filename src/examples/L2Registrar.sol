@@ -14,6 +14,14 @@ contract L2Registrar {
     /// @param owner The owner of the newly registered name
     event NameRegistered(string indexed label, address indexed owner);
 
+    // Emitted when a new subname is registered
+    event NameRegistered(
+        uint256 indexed tokenId,
+        string label,
+        uint64 expiration,
+        address registeredBy
+    );
+
     /// @notice Reference to the target registry contract
     IL2Registry public immutable registry;
 
