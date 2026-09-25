@@ -14,6 +14,7 @@ import {NameCoder} from "@ensdomains/ens-contracts/utils/NameCoder.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {strings} from "@arachnid/string-utils/strings.sol";
 
+import {IOffchainResolverMetadataProvider} from "./interfaces/IOffchainResolverMetadataProvider.sol";
 import {IOperationRouter} from "./interfaces/IOperationRouter.sol";
 import {SignatureVerifier} from "./lib/SignatureVerifier.sol";
 
@@ -37,10 +38,18 @@ interface INameWrapper {
     function ownerOf(uint256 id) external view returns (address owner);
 }
 
+interface IV2EthRegistry {
+    function findOwner(string calldata label) external view returns (address owner);
+}
+
 /// @author NameStone
 /// @notice ENS resolver that directs all queries to a CCIP Read gateway.
 /// @dev Callers must implement EIP-3668 and ENSIP-10.
-contract L1Resolver is IExtendedResolver, Ownable {
+contract L1Resolver is
+    IExtendedResolver,
+    IOffchainResolverMetadataProvider,
+    Ownable
+{
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -55,13 +64,13 @@ contract L1Resolver is IExtendedResolver, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     ENS public constant ens = ENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
+    IV2EthRegistry public constant v2EthRegistry = IV2EthRegistry(0xDEDB92913A25abE1f7BCDD85D8A344a43B398B67);
 
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
 
     string public url;
-    string public metadataUrl;
     address public signer;
     INameWrapper public immutable nameWrapper;
 
@@ -72,20 +81,7 @@ contract L1Resolver is IExtendedResolver, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     event GatewayChanged(string url);
-    event MetadataUrlChanged(string metadataUrl);
     event SignerChanged(address signer);
-
-    /// @dev Emitted when the metadata for a name is changed (ENSIP-16)
-    /// @param name DNS-encoded name to query
-    /// @param urls URLs for querying offchain data
-    /// @param chainId The chain ID where the data is stored (0 for non-EVM sources)
-    /// @param l2RegistryAddress The base registry address on the target chain that emits events
-    event MetadataChanged(
-        bytes name,
-        string[] urls,
-        uint256 chainId,
-        address l2RegistryAddress
-    );
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -128,7 +124,27 @@ contract L1Resolver is IExtendedResolver, Ownable {
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Specify the L2 registry for a given name
+    /// @notice Specify the L2 registry for a given ENSv2 name. Enter a 2LD label, e.g. "nick" for "nick.eth".
+    function setL2RegistryV2(
+        string calldata label,
+        uint64 targetChainId,
+        address targetRegistryAddress
+    ) external {
+        address owner = v2EthRegistry.findOwner(label);
+        if (owner != msg.sender) {
+            revert Unauthorized();
+        }
+
+        bytes memory name = NameCoder.encode(string.concat(label, ".eth"));
+        _setL2Registry(
+            name,
+            NameCoder.namehash(name, 0),
+            targetChainId,
+            targetRegistryAddress
+        );
+    }
+
+    /// @notice Specify the L2 registry for a given ENSv1 name
     /// @dev Should only be used with 2LDs, e.g. "nick.eth".
     /// @param name DNS-encoded name
     /// @param targetChainId Chain identifier
@@ -149,16 +165,7 @@ contract L1Resolver is IExtendedResolver, Ownable {
             revert Unauthorized();
         }
 
-        l2Registry[node] = L2Registry({
-            chainId: targetChainId,
-            registryAddress: targetRegistryAddress
-        });
-        emit MetadataChanged(
-            name,
-            metadataUrls(),
-            targetChainId,
-            targetRegistryAddress
-        );
+        _setL2Registry(name, node, targetChainId, targetRegistryAddress);
     }
 
     /// @notice Resolves a name, as specified by ENSIP 10.
@@ -206,28 +213,23 @@ contract L1Resolver is IExtendedResolver, Ownable {
         return result;
     }
 
-    /// @notice Returns metadata for discovering the location of offchain name data.
-    /// @dev Event signature is defined in ENSIP-16.
-    /// @param name DNS-encoded name to query.
-    /// @return urls The URLs for querying offchain data.
-    /// @return chainId The chain ID where the data is stored.
-    /// @return l2RegistryAddress The base registry address on the target chain that emits events.
+    /// @inheritdoc IOffchainResolverMetadataProvider
     function metadata(
         bytes calldata name
     )
         external
         view
         returns (
-            string[] memory urls,
+            string[] memory rpcUrls,
             uint256 chainId,
-            address l2RegistryAddress
+            address baseRegistry
         )
     {
         bytes32 parentNode = getParentNode(name);
         L2Registry memory targetL2Registry = l2Registry[parentNode];
 
         return (
-            metadataUrls(),
+            new string[](0),
             targetL2Registry.chainId,
             targetL2Registry.registryAddress
         );
@@ -236,6 +238,8 @@ contract L1Resolver is IExtendedResolver, Ownable {
     function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
         return
             interfaceId == type(IExtendedResolver).interfaceId ||
+            interfaceId ==
+            type(IOffchainResolverMetadataProvider).interfaceId ||
             interfaceId == 0x01ffc9a7; // ERC-165 interface
     }
 
@@ -247,12 +251,6 @@ contract L1Resolver is IExtendedResolver, Ownable {
     function setURL(string calldata _url) external onlyOwner {
         url = _url;
         emit GatewayChanged(_url);
-    }
-
-    /// @notice Sets the metadata URL for the resolver service.
-    function setMetadataUrl(string calldata _metadataUrl) external onlyOwner {
-        metadataUrl = _metadataUrl;
-        emit MetadataUrlChanged(_metadataUrl);
     }
 
     /// @notice Sets the signers for the resolver service.
@@ -318,9 +316,21 @@ contract L1Resolver is IExtendedResolver, Ownable {
         return parentNode;
     }
 
-    function metadataUrls() internal view returns (string[] memory) {
-        string[] memory urls = new string[](1);
-        urls[0] = metadataUrl;
-        return urls;
+    function _setL2Registry(
+        bytes memory name,
+        bytes32 node,
+        uint64 targetChainId,
+        address targetRegistryAddress
+    ) internal {
+        l2Registry[node] = L2Registry({
+            chainId: targetChainId,
+            registryAddress: targetRegistryAddress
+        });
+        emit MetadataChanged(
+            name,
+            new string[](0),
+            targetChainId,
+            targetRegistryAddress
+        );
     }
 }
