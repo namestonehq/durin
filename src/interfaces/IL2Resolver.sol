@@ -30,8 +30,6 @@ interface IL2Resolver is
 {
     error Unauthorized(bytes32 node);
 
-    function nonces(bytes32 node) external view returns (uint256);
-
     function setABI(
         bytes32 node,
         uint256 contentType,
