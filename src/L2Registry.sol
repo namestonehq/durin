@@ -32,6 +32,8 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     /// @dev Includes names at any depth
     uint256 public totalSupply;
 
+    bytes16 private constant _HEX_DIGITS = "0123456789abcdef";
+
     string private _tokenName;
     string private _tokenSymbol;
     string private _tokenBaseUri;
@@ -40,6 +42,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     mapping(bytes32 node => bytes name) public names;
 
     /// @notice Mapping of approved registrar controllers
+    /// @dev Registrars are fully trusted: they can create subnodes under any node and update the records of any node
     mapping(address registrar => bool approved) public registrars;
 
     /*//////////////////////////////////////////////////////////////
@@ -67,6 +70,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
 
     error LabelTooShort();
     error LabelTooLong(string label);
+    error InvalidLabel(string label);
     error NotAvailable(string label, bytes32 parentNode);
 
     /*//////////////////////////////////////////////////////////////
@@ -114,8 +118,8 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         // Registry
         baseNode = node;
         names[baseNode] = dnsEncodedName;
-        _safeMint(admin, uint256(node));
         totalSupply++;
+        _safeMint(admin, uint256(node));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -143,10 +147,11 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
             revert NotAvailable(label, node);
         }
 
-        _safeMint(_owner, uint256(subnode));
-        _multicall(subnode, data);
+        // Update state before `_safeMint()` which calls `onERC721Received()` on `_owner`
         names[subnode] = dnsEncodedName;
         totalSupply++;
+        _safeMint(_owner, uint256(subnode));
+        _multicall(subnode, data);
 
         emit NewOwner(node, labelhash, _owner);
         emit SubnodeCreated(subnode, dnsEncodedName, _owner);
@@ -182,6 +187,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     }
 
     /// @notice The admin of the registry
+    /// @dev This is the owner of the `baseNode` token, so transferring that token transfers admin rights
     function owner() public view returns (address) {
         return owner(baseNode);
     }
@@ -248,6 +254,12 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         if (bytes(label).length > 255) {
             revert LabelTooLong(label);
         }
+        // A "." in a label would make the decoded name ambiguous, e.g. "a.b" under "name.eth" displays as "a.b.name.eth"
+        for (uint256 i = 0; i < bytes(label).length; i++) {
+            if (bytes(label)[i] == ".") {
+                revert InvalidLabel(label);
+            }
+        }
         return abi.encodePacked(uint8(bytes(label).length), label, _name);
     }
 
@@ -268,6 +280,38 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         emit BaseURIUpdated(baseURI);
     }
 
+    /// @dev Escapes a string so it can be safely embedded in a JSON string value
+    function _escapeJSON(
+        string memory input
+    ) private pure returns (string memory) {
+        bytes memory buffer = bytes(input);
+        // Worst case: every byte becomes a 6-byte `\u00XX` escape sequence
+        bytes memory output = new bytes(buffer.length * 6);
+        uint256 outputLength = 0;
+
+        for (uint256 i = 0; i < buffer.length; i++) {
+            bytes1 char = buffer[i];
+            if (char == '"' || char == "\\") {
+                output[outputLength++] = "\\";
+                output[outputLength++] = char;
+            } else if (uint8(char) < 0x20) {
+                output[outputLength++] = "\\";
+                output[outputLength++] = "u";
+                output[outputLength++] = "0";
+                output[outputLength++] = "0";
+                output[outputLength++] = _HEX_DIGITS[uint8(char) >> 4];
+                output[outputLength++] = _HEX_DIGITS[uint8(char) & 0x0f];
+            } else {
+                output[outputLength++] = char;
+            }
+        }
+
+        assembly ("memory-safe") {
+            mstore(output, outputLength)
+        }
+        return string(output);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                OVERRIDES
     //////////////////////////////////////////////////////////////*/
@@ -281,7 +325,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
 
             string memory json = string.concat(
                 '{"name": "',
-                NameCoder.decode(names[bytes32(tokenId)]),
+                _escapeJSON(NameCoder.decode(names[bytes32(tokenId)])),
                 '"}'
             );
 

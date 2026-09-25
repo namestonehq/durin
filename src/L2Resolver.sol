@@ -10,7 +10,7 @@ pragma solidity ^0.8.20;
 
 import {ABIResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ABIResolver.sol";
 import {AddrResolver} from "@ensdomains/ens-contracts/resolvers/profiles/AddrResolver.sol";
-import {COIN_TYPE_DEFAULT, ENSIP19} from "@ensdomains/ens-contracts/utils/ENSIP19.sol";
+import {COIN_TYPE_DEFAULT, COIN_TYPE_ETH, ENSIP19} from "@ensdomains/ens-contracts/utils/ENSIP19.sol";
 import {ContentHashResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ContentHashResolver.sol";
 import {ExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ExtendedResolver.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
@@ -45,11 +45,19 @@ contract L2Resolver is
         );
 
     /*//////////////////////////////////////////////////////////////
+                            STATE VARIABLES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Signature nonce for each node, consumed by the `*WithSignature` methods to prevent replays
+    mapping(bytes32 node => uint256 nonce) public nonces;
+
+    /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
     error Unauthorized(bytes32 node);
     error SignatureExpired();
+    error InvalidContentType(uint256 contentType);
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -64,6 +72,16 @@ contract L2Resolver is
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    // The `*WithSignature` methods allow anyone to submit a record update that was signed by an address authorised
+    // for `node`. The signer must sign (ERC-191 `personal_sign`) the keccak256 hash of:
+    //
+    //   abi.encode(bytes4 selector, uint256 chainId, address registry, bytes32 node, bytes recordArgs,
+    //              uint256 expiration, uint256 nonce)
+    //
+    // where `selector` is the selector of the `*WithSignature` method being called, `recordArgs` is the ABI encoding
+    // of the record-specific arguments (e.g. `abi.encode(key, value)` for `setTextWithSignature`) and `nonce` is
+    // `nonces(node)`. Each successful call increments `nonces(node)`, so a signature can only be used once.
+
     function setAddrWithSignature(
         bytes32 node,
         uint256 coinType,
@@ -72,18 +90,26 @@ contract L2Resolver is
         address signer,
         bytes calldata signature
     ) public unexpiredSignature(expiration) {
-        bytes32 sigHash = keccak256(
-            abi.encodePacked(address(this), node, coinType, a, expiration)
-        ).toEthSignedMessageHash();
+        _verifySignature(
+            this.setAddrWithSignature.selector,
+            node,
+            abi.encode(coinType, a),
+            expiration,
+            signer,
+            signature
+        );
 
+        // Manually update storage since `setAddr()` on the inherited contract checks `msg.sender` instead of `signer`
         if (
-            !_isAuthorisedForAddress(signer, node) ||
-            !universalSignatureValidator.isValidSig(signer, sigHash, signature)
+            a.length != 0 && a.length != 20 && ENSIP19.isEVMCoinType(coinType)
         ) {
-            revert Unauthorized(node);
+            revert InvalidEVMAddress(a);
         }
-
-        setAddr(node, coinType, a);
+        emit AddressChanged(node, coinType, a);
+        if (coinType == COIN_TYPE_ETH) {
+            emit AddrChanged(node, address(bytes20(a)));
+        }
+        versionable_addresses[recordVersions[node]][node][coinType] = a;
     }
 
     function setTextWithSignature(
@@ -94,16 +120,14 @@ contract L2Resolver is
         address signer,
         bytes calldata signature
     ) public unexpiredSignature(expiration) {
-        bytes32 sigHash = keccak256(
-            abi.encodePacked(address(this), node, key, value, expiration)
-        ).toEthSignedMessageHash();
-
-        if (
-            !_isAuthorisedForAddress(signer, node) ||
-            !universalSignatureValidator.isValidSig(signer, sigHash, signature)
-        ) {
-            revert Unauthorized(node);
-        }
+        _verifySignature(
+            this.setTextWithSignature.selector,
+            node,
+            abi.encode(key, value),
+            expiration,
+            signer,
+            signature
+        );
 
         // Manually update storage since `setText()` on the inherited contract cannot be called internally
         versionable_texts[recordVersions[node]][node][key] = value;
@@ -117,16 +141,14 @@ contract L2Resolver is
         address signer,
         bytes calldata signature
     ) public unexpiredSignature(expiration) {
-        bytes32 sigHash = keccak256(
-            abi.encodePacked(address(this), node, hash, expiration)
-        ).toEthSignedMessageHash();
-
-        if (
-            !_isAuthorisedForAddress(signer, node) ||
-            !universalSignatureValidator.isValidSig(signer, sigHash, signature)
-        ) {
-            revert Unauthorized(node);
-        }
+        _verifySignature(
+            this.setContenthashWithSignature.selector,
+            node,
+            abi.encode(hash),
+            expiration,
+            signer,
+            signature
+        );
 
         // Manually update storage since `setContenthash()` on the inherited contract cannot be called internally
         versionable_hashes[recordVersions[node]][node] = hash;
@@ -141,19 +163,19 @@ contract L2Resolver is
         address signer,
         bytes calldata signature
     ) public unexpiredSignature(expiration) {
-        bytes32 sigHash = keccak256(
-            abi.encodePacked(address(this), node, contentType, data, expiration)
-        ).toEthSignedMessageHash();
-
-        if (
-            !_isAuthorisedForAddress(signer, node) ||
-            !universalSignatureValidator.isValidSig(signer, sigHash, signature)
-        ) {
-            revert Unauthorized(node);
+        // Content types must be powers of 2
+        if (contentType == 0 || ((contentType - 1) & contentType) != 0) {
+            revert InvalidContentType(contentType);
         }
 
-        // Content types must be powers of 2
-        require(((contentType - 1) & contentType) == 0);
+        _verifySignature(
+            this.setABIWithSignature.selector,
+            node,
+            abi.encode(contentType, data),
+            expiration,
+            signer,
+            signature
+        );
 
         // Manually update storage since `setABI()` on the inherited contract cannot be called internally
         versionable_abis[recordVersions[node]][node][contentType] = data;
@@ -180,6 +202,8 @@ contract L2Resolver is
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev Registrars are authorised for every node in the registry. Otherwise, the owner of the node, an operator
+    ///      approved via `setApprovalForAll()` or the address approved for the token via `approve()` is authorised.
     function _isAuthorisedForAddress(
         address _addr,
         bytes32 _node
@@ -193,7 +217,11 @@ contract L2Resolver is
         uint256 tokenId = uint256(_node);
         address owner = registry.ownerOf(tokenId);
 
-        if ((owner != _addr) && (registry.getApproved(tokenId) != _addr)) {
+        if (
+            owner != _addr &&
+            !registry.isApprovedForAll(owner, _addr) &&
+            registry.getApproved(tokenId) != _addr
+        ) {
             revert Unauthorized(_node);
         }
 
@@ -207,6 +235,40 @@ contract L2Resolver is
     function _unexpiredSignature(uint256 expiration) internal view {
         if (block.timestamp > expiration) {
             revert SignatureExpired();
+        }
+    }
+
+    /// @dev Consumes the nonce for `node` and reverts unless `signature` is valid for the record update.
+    ///      See the comment above the `*WithSignature` methods for the message format.
+    function _verifySignature(
+        bytes4 selector,
+        bytes32 node,
+        bytes memory recordArgs,
+        uint256 expiration,
+        address signer,
+        bytes calldata signature
+    ) private {
+        bytes32 message = keccak256(
+            abi.encode(
+                selector,
+                block.chainid,
+                address(this),
+                node,
+                recordArgs,
+                expiration,
+                nonces[node]++
+            )
+        );
+
+        if (
+            !_isAuthorisedForAddress(signer, node) ||
+            !universalSignatureValidator.isValidSig(
+                signer,
+                message.toEthSignedMessageHash(),
+                signature
+            )
+        ) {
+            revert Unauthorized(node);
         }
     }
 

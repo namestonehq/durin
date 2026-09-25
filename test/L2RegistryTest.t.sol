@@ -6,12 +6,17 @@ import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/Messa
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 import {NameCoder} from "@ensdomains/ens-contracts/utils/NameCoder.sol";
+import {AddrResolver} from "@ensdomains/ens-contracts/resolvers/profiles/AddrResolver.sol";
 
 import {L2Registry} from "src/L2Registry.sol";
 import {L2RegistryFactory} from "src/L2RegistryFactory.sol";
 import {IL2Resolver} from "src/interfaces/IL2Resolver.sol";
 
+import {L2Registrar} from "src/examples/L2Registrar.sol";
+import {L2Resolver} from "src/L2Resolver.sol";
+
 import {MockRegistrar} from "./mocks/MockRegistrar.sol";
+import {ReentrantReceiver} from "./mocks/ReentrantReceiver.sol";
 
 contract L2RegistryTest is Test {
     using MessageHashUtils for bytes32;
@@ -78,17 +83,8 @@ contract L2RegistryTest is Test {
         registry.addRegistrar(address(registrar));
     }
 
-    function testFuzz_Register(string calldata _label) public {
-        vm.assume(bytes(_label).length > 1 && bytes(_label).length < 255);
-
-        // NameCoder won't allow decoding scam labels, so we need to enforce a valid label by removing "."
-        bytes memory b = bytes(_label);
-        for (uint i = 0; i < b.length; i++) {
-            if (b[i] == bytes1(".")) {
-                b[i] = bytes1("");
-            }
-        }
-        string memory label = string(b);
+    function testFuzz_Register(string calldata label) public {
+        vm.assume(_isValidLabel(label));
 
         bytes32 expectedNode = registry.makeNode(registry.baseNode(), label);
 
@@ -115,7 +111,7 @@ contract L2RegistryTest is Test {
     }
 
     function testFuzz_RegisterTwiceReverts(string calldata label) public {
-        vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
+        vm.assume(_isValidLabel(label));
 
         vm.prank(admin);
         registry.addRegistrar(address(registrar));
@@ -138,7 +134,7 @@ contract L2RegistryTest is Test {
     function testFuzz_RegisterWithUnapprovedRegistrarReverts(
         string calldata label
     ) public {
-        vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
+        vm.assume(_isValidLabel(label));
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -154,8 +150,8 @@ contract L2RegistryTest is Test {
         string calldata label,
         string calldata sublabel
     ) public {
-        vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
-        vm.assume(bytes(sublabel).length > 1 && bytes(sublabel).length < 255);
+        vm.assume(_isValidLabel(label));
+        vm.assume(_isValidLabel(sublabel));
 
         // Add registrar
         vm.prank(admin);
@@ -205,8 +201,8 @@ contract L2RegistryTest is Test {
         string calldata label,
         string calldata sublabel
     ) public {
-        vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
-        vm.assume(bytes(sublabel).length > 1 && bytes(sublabel).length < 255);
+        vm.assume(_isValidLabel(label));
+        vm.assume(_isValidLabel(sublabel));
 
         // Add registrar
         vm.prank(admin);
@@ -239,8 +235,8 @@ contract L2RegistryTest is Test {
         string calldata label,
         string calldata sublabel
     ) public {
-        vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
-        vm.assume(bytes(sublabel).length > 1 && bytes(sublabel).length < 255);
+        vm.assume(_isValidLabel(label));
+        vm.assume(_isValidLabel(sublabel));
 
         // Add registrar
         vm.prank(admin);
@@ -261,7 +257,7 @@ contract L2RegistryTest is Test {
     }
 
     function testFuzz_SetSingleRecordsByOwner(string calldata label) public {
-        vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
+        vm.assume(_isValidLabel(label));
         bytes32 node = registry.makeNode(registry.baseNode(), label);
 
         vm.prank(admin);
@@ -283,7 +279,7 @@ contract L2RegistryTest is Test {
     function testFuzz_SetSingleRecordsByApprovedAddress(
         string calldata label
     ) public {
-        vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
+        vm.assume(_isValidLabel(label));
         bytes32 node = registry.makeNode(registry.baseNode(), label);
 
         vm.prank(admin);
@@ -300,7 +296,7 @@ contract L2RegistryTest is Test {
     }
 
     function testFuzz_SetTextRecordWithSignature(string calldata label) public {
-        vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
+        vm.assume(_isValidLabel(label));
 
         bytes32 node = registry.makeNode(registry.baseNode(), label);
 
@@ -313,21 +309,14 @@ contract L2RegistryTest is Test {
         uint256 expiration = block.timestamp + 1 days;
 
         // Sign message that will be used for another user to set a text record
-        bytes32 message = keccak256(
-            abi.encodePacked(
-                address(registry),
-                node,
-                "key",
-                "value",
-                expiration
-            )
-        ).toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey1, message);
-
-        bytes memory signature = abi.encodePacked(r, s, v);
+        bytes memory signature = _sign(
+            privateKey1,
+            registry.setTextWithSignature.selector,
+            node,
+            abi.encode("key", "value"),
+            expiration
+        );
         vm.stopPrank();
-
-        assertEq(ecrecover(message, v, r, s), user1);
 
         vm.prank(user2);
         registry.setTextWithSignature(
@@ -340,12 +329,13 @@ contract L2RegistryTest is Test {
         );
 
         assertEq(registry.text(node, "key"), "value");
+        assertEq(registry.nonces(node), 1);
     }
 
     function testFuzz_SetTextRecordWithSignatureByUnauthorizedAddressReverts(
         string calldata label
     ) public {
-        vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
+        vm.assume(_isValidLabel(label));
 
         bytes32 node = registry.makeNode(registry.baseNode(), label);
 
@@ -358,18 +348,13 @@ contract L2RegistryTest is Test {
         uint256 expiration = block.timestamp + 1 days;
 
         // Sign message that will be used for another user to set a text record
-        bytes32 message = keccak256(
-            abi.encodePacked(
-                address(registry),
-                node,
-                "key",
-                "value",
-                expiration
-            )
-        ).toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey2, message);
-
-        bytes memory signature = abi.encodePacked(r, s, v);
+        bytes memory signature = _sign(
+            privateKey2,
+            registry.setTextWithSignature.selector,
+            node,
+            abi.encode("key", "value"),
+            expiration
+        );
         vm.stopPrank();
 
         vm.prank(user2);
@@ -387,7 +372,7 @@ contract L2RegistryTest is Test {
     }
 
     function testFuzz_SetRecordUnauthedReverts(string calldata label) public {
-        vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
+        vm.assume(_isValidLabel(label));
         bytes32 node = registry.makeNode(registry.baseNode(), label);
 
         // Register a name to `user1`
@@ -407,7 +392,7 @@ contract L2RegistryTest is Test {
     }
 
     function testFuzz_SetRecordsWithMulticall(string calldata label) public {
-        vm.assume(bytes(label).length > 1 && bytes(label).length < 255);
+        vm.assume(_isValidLabel(label));
         bytes32 node = registry.makeNode(registry.baseNode(), label);
 
         bytes[] memory data = new bytes[](3);
@@ -496,5 +481,386 @@ contract L2RegistryTest is Test {
             registry.tokenURI(uint256(testNameNode)),
             string(abi.encodePacked(baseURI, tokenIdString))
         );
+    }
+
+    function test_SetAddrWithSignatureByRelayer() public {
+        bytes32 node = _registerTo("name", user1);
+        uint256 expiration = block.timestamp + 1 days;
+        bytes memory a = abi.encodePacked(user1);
+
+        bytes memory signature = _sign(
+            privateKey1,
+            registry.setAddrWithSignature.selector,
+            node,
+            abi.encode(uint256(60), a),
+            expiration
+        );
+
+        // `user2` has no permissions for `node` but can relay the signed update
+        vm.prank(user2);
+        registry.setAddrWithSignature(
+            node,
+            60,
+            a,
+            expiration,
+            user1,
+            signature
+        );
+
+        assertEq(registry.addr(node), user1);
+        assertEq(registry.nonces(node), 1);
+    }
+
+    function test_SetAddrWithSignatureInvalidEVMAddressReverts() public {
+        bytes32 node = _registerTo("name", user1);
+        uint256 expiration = block.timestamp + 1 days;
+        bytes memory a = hex"1234";
+
+        bytes memory signature = _sign(
+            privateKey1,
+            registry.setAddrWithSignature.selector,
+            node,
+            abi.encode(uint256(60), a),
+            expiration
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(AddrResolver.InvalidEVMAddress.selector, a)
+        );
+        vm.prank(user2);
+        registry.setAddrWithSignature(
+            node,
+            60,
+            a,
+            expiration,
+            user1,
+            signature
+        );
+    }
+
+    function test_SetContenthashAndABIWithSignature() public {
+        bytes32 node = _registerTo("name", user1);
+        uint256 expiration = block.timestamp + 1 days;
+
+        bytes memory contenthashSignature = _sign(
+            privateKey1,
+            registry.setContenthashWithSignature.selector,
+            node,
+            abi.encode(hex"1234"),
+            expiration
+        );
+        vm.prank(user2);
+        registry.setContenthashWithSignature(
+            node,
+            hex"1234",
+            expiration,
+            user1,
+            contenthashSignature
+        );
+        assertEq(registry.contenthash(node), hex"1234");
+
+        bytes memory abiSignature = _sign(
+            privateKey1,
+            registry.setABIWithSignature.selector,
+            node,
+            abi.encode(uint256(1), hex"5678"),
+            expiration
+        );
+        vm.prank(user2);
+        registry.setABIWithSignature(
+            node,
+            1,
+            hex"5678",
+            expiration,
+            user1,
+            abiSignature
+        );
+        (uint256 contentType, bytes memory data) = registry.ABI(node, 1);
+        assertEq(contentType, 1);
+        assertEq(data, hex"5678");
+        assertEq(registry.nonces(node), 2);
+    }
+
+    function test_SignatureReplayReverts() public {
+        bytes32 node = _registerTo("name", user1);
+        uint256 expiration = block.timestamp + 365 days;
+
+        bytes memory signature = _sign(
+            privateKey1,
+            registry.setTextWithSignature.selector,
+            node,
+            abi.encode("key", "old"),
+            expiration
+        );
+        vm.prank(user2);
+        registry.setTextWithSignature(
+            node,
+            "key",
+            "old",
+            expiration,
+            user1,
+            signature
+        );
+
+        vm.prank(user1);
+        registry.setText(node, "key", "new");
+
+        // The same signature cannot be used to revert the record to the old value
+        vm.expectRevert(
+            abi.encodeWithSelector(IL2Resolver.Unauthorized.selector, node)
+        );
+        vm.prank(user2);
+        registry.setTextWithSignature(
+            node,
+            "key",
+            "old",
+            expiration,
+            user1,
+            signature
+        );
+        assertEq(registry.text(node, "key"), "new");
+    }
+
+    function test_TextSignatureCannotSetContenthash() public {
+        bytes32 node = _registerTo("name", user1);
+        uint256 expiration = block.timestamp + 1 days;
+
+        bytes memory signature = _sign(
+            privateKey1,
+            registry.setTextWithSignature.selector,
+            node,
+            abi.encode("note", "attacker"),
+            expiration
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IL2Resolver.Unauthorized.selector, node)
+        );
+        vm.prank(user2);
+        registry.setContenthashWithSignature(
+            node,
+            bytes("noteattacker"),
+            expiration,
+            user1,
+            signature
+        );
+    }
+
+    function test_TextSignatureCannotShiftKeyValueBoundary() public {
+        bytes32 node = _registerTo("name", user1);
+        uint256 expiration = block.timestamp + 1 days;
+
+        bytes memory signature = _sign(
+            privateKey1,
+            registry.setTextWithSignature.selector,
+            node,
+            abi.encode("url", "https://real.io"),
+            expiration
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IL2Resolver.Unauthorized.selector, node)
+        );
+        vm.prank(user2);
+        registry.setTextWithSignature(
+            node,
+            "urlhttps://real.i",
+            "o",
+            expiration,
+            user1,
+            signature
+        );
+    }
+
+    function test_SignatureFromOtherChainReverts() public {
+        bytes32 node = _registerTo("name", user1);
+        uint256 expiration = block.timestamp + 1 days;
+
+        bytes memory signature = _sign(
+            privateKey1,
+            registry.setTextWithSignature.selector,
+            node,
+            abi.encode("key", "value"),
+            expiration
+        );
+
+        vm.chainId(block.chainid + 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(IL2Resolver.Unauthorized.selector, node)
+        );
+        vm.prank(user2);
+        registry.setTextWithSignature(
+            node,
+            "key",
+            "value",
+            expiration,
+            user1,
+            signature
+        );
+    }
+
+    function test_ExpiredSignatureReverts() public {
+        bytes32 node = _registerTo("name", user1);
+        uint256 expiration = block.timestamp + 1 days;
+
+        bytes memory signature = _sign(
+            privateKey1,
+            registry.setTextWithSignature.selector,
+            node,
+            abi.encode("key", "value"),
+            expiration
+        );
+
+        vm.warp(expiration + 1);
+        vm.expectRevert(L2Resolver.SignatureExpired.selector);
+        vm.prank(user2);
+        registry.setTextWithSignature(
+            node,
+            "key",
+            "value",
+            expiration,
+            user1,
+            signature
+        );
+    }
+
+    function test_SetABIWithSignatureInvalidContentTypeReverts() public {
+        bytes32 node = _registerTo("name", user1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(L2Resolver.InvalidContentType.selector, 0)
+        );
+        registry.setABIWithSignature(
+            node,
+            0,
+            hex"",
+            block.timestamp,
+            user1,
+            hex""
+        );
+    }
+
+    function test_SetRecordsByOperator() public {
+        bytes32 node = _registerTo("name", user1);
+
+        vm.prank(user1);
+        registry.setApprovalForAll(user2, true);
+
+        vm.prank(user2);
+        registry.setAddr(node, user2);
+        assertEq(registry.addr(node), user2);
+    }
+
+    function test_SetRecordsByApprovedAddress() public {
+        bytes32 node = _registerTo("name", user1);
+
+        vm.prank(user1);
+        registry.approve(user2, uint256(node));
+
+        vm.prank(user2);
+        registry.setAddr(node, user2);
+        assertEq(registry.addr(node), user2);
+    }
+
+    function test_LabelWithDotReverts() public {
+        vm.prank(admin);
+        registry.addRegistrar(address(registrar));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(L2Registry.InvalidLabel.selector, "a.b")
+        );
+        registrar.register("a.b", user1);
+    }
+
+    function test_TokenMetadataEscapesName() public {
+        string memory label = string(abi.encodePacked('x", "image": "\\', bytes1(0x0a)));
+        bytes32 node = _registerTo(label, user1);
+
+        string memory metadata = string.concat(
+            "data:application/json;base64,",
+            Base64.encode(
+                bytes('{"name": "x\\", \\"image\\": \\"\\\\\\u000a.testname.eth"}')
+            )
+        );
+        assertEq(registry.tokenURI(uint256(node)), metadata);
+    }
+
+    function test_CreateSubnodeReentrancyKeepsNamesConsistent() public {
+        ReentrantReceiver receiver = new ReentrantReceiver(address(registry));
+        bytes32 parentNode = _registerTo("parent", address(receiver));
+        bytes32 childNode = registry.makeNode(parentNode, "child");
+
+        assertEq(registry.owner(childNode), address(receiver));
+        assertEq(
+            registry.decodeName(registry.names(childNode)),
+            "child.parent.testname.eth"
+        );
+        assertEq(registry.totalSupply(), 3);
+    }
+
+    function test_ExampleRegistrarEnforcesMinimumLength() public {
+        L2Registrar exampleRegistrar = new L2Registrar(address(registry));
+        vm.prank(admin);
+        registry.addRegistrar(address(exampleRegistrar));
+
+        assertFalse(exampleRegistrar.available("ab"));
+        vm.expectRevert(
+            abi.encodeWithSelector(L2Registrar.LabelTooShort.selector, "ab")
+        );
+        exampleRegistrar.register("ab", user1);
+
+        assertTrue(exampleRegistrar.available("abc"));
+        exampleRegistrar.register("abc", user1);
+        bytes32 node = registry.makeNode(registry.baseNode(), "abc");
+        assertEq(registry.owner(node), user1);
+        assertEq(registry.addr(node), user1);
+        assertEq(
+            exampleRegistrar.coinType(),
+            0x80000000 | block.chainid
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    function _isValidLabel(string memory label) private pure returns (bool) {
+        bytes memory b = bytes(label);
+        if (b.length <= 1 || b.length >= 255) return false;
+        for (uint256 i = 0; i < b.length; i++) {
+            if (b[i] == ".") return false;
+        }
+        return true;
+    }
+
+    function _registerTo(
+        string memory label,
+        address owner
+    ) private returns (bytes32) {
+        vm.prank(admin);
+        registry.addRegistrar(address(registrar));
+        return registrar.register(label, owner);
+    }
+
+    function _sign(
+        uint256 privateKey,
+        bytes4 selector,
+        bytes32 node,
+        bytes memory recordArgs,
+        uint256 expiration
+    ) private view returns (bytes memory) {
+        bytes32 message = keccak256(
+            abi.encode(
+                selector,
+                block.chainid,
+                address(registry),
+                node,
+                recordArgs,
+                expiration,
+                registry.nonces(node)
+            )
+        ).toEthSignedMessageHash();
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, message);
+        return abi.encodePacked(r, s, v);
     }
 }

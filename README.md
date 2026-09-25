@@ -100,6 +100,30 @@ This repo includes all of the smart contract (L1 and L2) required to enable subn
 > [!NOTE]  
 > A dependency for supporting `-withSignature` methods on new chains is a deployment of UniversalSigValidator to `0x164af34fAF9879394370C7f09064127C043A35E9`. The deployment is permissionless and can be found [here](https://github.com/ensdomains/ens-contracts/blob/8c414e4c41dce49c49efd0bf82c10a145cdc8f0a/deploy/utils/00_deploy_universal_sig_validator.ts).
 
+### Signed record updates
+
+The `set*WithSignature` methods on the registry let anyone submit a record update that was signed by an address authorized for the name. The signer signs (ERC-191 `personal_sign`) the keccak256 hash of:
+
+```solidity
+abi.encode(
+    bytes4 selector,    // selector of the `set*WithSignature` method being called
+    uint256 chainId,
+    address registry,
+    bytes32 node,
+    bytes recordArgs,   // e.g. abi.encode(key, value) for setTextWithSignature
+    uint256 expiration,
+    uint256 nonce       // registry.nonces(node)
+)
+```
+
+Each successful call increments `nonces(node)`, so every signature can only be used once and signatures for the same name must be submitted in nonce order.
+
+### Trust model
+
+- The admin of a registry is whoever owns the token for the registry's base name. Transferring that token (or approving an operator for it) hands over the ability to add and remove registrars.
+- Registrars are fully trusted. They can create subnames under any name in the registry and update the records of any name, not only the names they registered. Only add registrar contracts you trust.
+- Besides registrars, the records of a name can be updated by its owner, an operator approved via `setApprovalForAll()` and the address approved for the token via `approve()`.
+
 ## Deploying Durin
 
 > [!NOTE]  
