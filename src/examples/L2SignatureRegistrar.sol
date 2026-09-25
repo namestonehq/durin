@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {Nonces} from "@openzeppelin/contracts/utils/Nonces.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
@@ -38,6 +39,9 @@ contract L2SignatureRegistrar is EIP712, Nonces {
 
     /// @notice Thrown when a call is not one of the registry's record setters
     error UnsupportedCall(bytes4 selector);
+
+    /// @notice Thrown when a call is for a different node than the one that was signed
+    error NodeMismatch(bytes32 callNode);
 
     /// @notice Initializes the registrar with a registry contract
     /// @param _registry Address of the L2Registry contract
@@ -82,15 +86,21 @@ contract L2SignatureRegistrar is EIP712, Nonces {
             revert Unauthorized(signer, node);
         }
 
+        // Call the registry directly instead of via `multicallWithNodeCheck()` so revert reasons are bubbled up
         for (uint256 i = 0; i < data.length; i++) {
             bytes4 selector = bytes4(data[i][:4]);
             if (!_isRecordSetter(selector)) {
                 revert UnsupportedCall(selector);
             }
-        }
 
-        // Reverts unless every call is for `node`
-        registry.multicallWithNodeCheck(node, data);
+            // Every record setter takes the node as its first argument
+            bytes32 callNode = bytes32(data[i][4:36]);
+            if (callNode != node) {
+                revert NodeMismatch(callNode);
+            }
+
+            Address.functionCall(address(registry), data[i]);
+        }
     }
 
     /// @notice Invalidates the caller's outstanding signatures by incrementing their nonce

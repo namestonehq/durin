@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {AddrResolver} from "@ensdomains/ens-contracts/resolvers/profiles/AddrResolver.sol";
 
 import {L2Registry} from "src/L2Registry.sol";
 import {L2RegistryFactory} from "src/L2RegistryFactory.sol";
@@ -155,9 +156,13 @@ contract L2SignatureRegistrarTest is Test {
         bytes memory signature = _sign(privateKey1, node, data, 0, deadline);
 
         vm.expectRevert(
-            bytes("multicall: All records must have a matching namehash")
+            abi.encodeWithSelector(
+                L2SignatureRegistrar.NodeMismatch.selector,
+                otherNode
+            )
         );
         signatureRegistrar.setRecords(node, data, deadline, user1, signature);
+        assertEq(registry.text(otherNode, "key"), "");
     }
 
     function test_UnsupportedCallReverts() public {
@@ -260,8 +265,13 @@ contract L2SignatureRegistrarTest is Test {
         );
         bytes memory signature = _sign(privateKey1, node, data, 0, deadline);
 
-        // The registry's own validation runs, but `Multicallable` doesn't bubble up the revert reason
-        vm.expectRevert(bytes(""));
+        // The registry's own validation runs and its revert reason is bubbled up
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AddrResolver.InvalidEVMAddress.selector,
+                hex"1234"
+            )
+        );
         signatureRegistrar.setRecords(node, data, deadline, user1, signature);
     }
 
