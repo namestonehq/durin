@@ -21,6 +21,7 @@ import {NameCoder} from "@ensdomains/ens-contracts/utils/NameCoder.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {strings} from "@arachnid/string-utils/strings.sol";
 
+import {IOffchainResolverMetadataProvider} from "./interfaces/IOffchainResolverMetadataProvider.sol";
 import {IOperationRouter} from "./interfaces/IOperationRouter.sol";
 
 interface INameWrapper {
@@ -30,7 +31,12 @@ interface INameWrapper {
 /// @author NameStone
 /// @notice ENS resolver that directs all queries to Unruggable Gateways for trustless resolution of data from L2s.
 /// @dev Callers must implement EIP-3668 and ENSIP-10.
-contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
+contract L1TrustlessResolver is
+    GatewayFetchTarget,
+    IExtendedResolver,
+    IOffchainResolverMetadataProvider,
+    Ownable
+{
     using GatewayFetcher for GatewayRequest;
 
     /*//////////////////////////////////////////////////////////////
@@ -67,16 +73,6 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
     mapping(uint64 => IGatewayVerifier) public verifier;
 
     /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    event L2RegistrySet(
-        bytes32 node,
-        uint64 targetChainId,
-        address targetRegistryAddress
-    );
-
-    /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
@@ -105,12 +101,17 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Specify the L2 registry for a given name. Should only be used with 2LDs, e.g. "nick.eth".
+    /// @notice Specify the L2 registry for a given name
+    /// @dev Should only be used with 2LDs, e.g. "nick.eth".
+    /// @param name DNS-encoded name
+    /// @param targetChainId Chain identifier
+    /// @param targetRegistryAddress Registry address on target chain
     function setL2Registry(
-        bytes32 node,
+        bytes calldata name,
         uint64 targetChainId,
         address targetRegistryAddress
     ) external {
+        bytes32 node = NameCoder.namehash(name, 0);
         address owner = ens.owner(node);
 
         if (owner == address(nameWrapper)) {
@@ -125,7 +126,12 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
             chainId: targetChainId,
             registryAddress: targetRegistryAddress
         });
-        emit L2RegistrySet(node, targetChainId, targetRegistryAddress);
+        emit MetadataChanged(
+            name,
+            new string[](0),
+            targetChainId,
+            targetRegistryAddress
+        );
     }
 
     /// @notice Resolves a name, as specified by ENSIP 10.
@@ -197,6 +203,27 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
         fetch(v, req, this.resolveCallback.selector, data, v.gatewayURLs());
     }
 
+    /// @inheritdoc IOffchainResolverMetadataProvider
+    function metadata(
+        bytes calldata name
+    )
+        external
+        view
+        returns (
+            string[] memory rpcUrls,
+            uint256 chainId,
+            address baseRegistry
+        )
+    {
+        L2Registry memory targetL2Registry = l2Registry[getParentNode(name)];
+
+        return (
+            new string[](0),
+            targetL2Registry.chainId,
+            targetL2Registry.registryAddress
+        );
+    }
+
     /// @notice The callback for the `OffchainLookup` triggered by our implementation of `IExtendedResolver` (ENSIP-10).
     function resolveCallback(
         bytes[] memory values,
@@ -213,7 +240,10 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
     }
 
     function supportsInterface(bytes4 id) external pure returns (bool) {
-        return id == type(IExtendedResolver).interfaceId || id == 0x01ffc9a7; // ERC-165 interface
+        return
+            id == type(IExtendedResolver).interfaceId ||
+            id == type(IOffchainResolverMetadataProvider).interfaceId ||
+            id == 0x01ffc9a7; // ERC-165 interface
     }
 
     /*//////////////////////////////////////////////////////////////
