@@ -8,12 +8,12 @@ pragma solidity ^0.8.20;
 // ▐▌  ▐▌▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖▗▄▄▞▘  █ ▝▚▄▞▘▐▌  ▐▌▐▙▄▄▖
 // ***********************************************
 
-import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
-import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import {NameCoder} from "@ensdomains/ens-contracts/utils/NameCoder.sol";
+import { Base64 } from "@openzeppelin/contracts/utils/Base64.sol";
+import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import { NameCoder } from "@ensdomains/ens-contracts/utils/NameCoder.sol";
 
-import {L2Resolver} from "./L2Resolver.sol";
+import { L2Resolver } from "./L2Resolver.sol";
 
 /// @title Durin Registry
 /// @author NameStone
@@ -50,13 +50,26 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     /// @notice Emitted when a name is created at any level
     event SubnodeCreated(bytes32 indexed node, bytes name, address owner);
 
-    /// @notice Emitted when a subnode is registered at any level
-    /// @dev Same event signature as the ENS Registry
-    event NewOwner(
-        bytes32 indexed parentNode,
-        bytes32 indexed labelhash,
-        address owner
+    /// @notice Emitted when a name is registered (ENSIP-16)
+    /// @dev Durin names don't expire, so `expiration` is always `type(uint64).max`
+    /// @param tokenId The token ID of the name, `uint256(node)`
+    /// @param label The label of the name
+    /// @param expiration The expiration of the name
+    /// @param registeredBy The address that registered the name
+    /// @param context The parent node of the name
+    event NameRegistered(
+        uint256 indexed tokenId, string label, uint64 expiration, address registeredBy, uint256 context
     );
+
+    /// @notice Emitted when a name is transferred (ENSIP-16)
+    /// @dev Mirrors the ERC1155 event so indexers can follow ENSIP-16 without special-casing ERC721
+    event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value);
+
+    /// @notice Emitted when the resolver of a name is set (ENSIP-16)
+    /// @dev The registry is the resolver for every name, so this is always `address(this)`
+    /// @param id The token ID of the name, `uint256(node)`
+    /// @param resolver The resolver of the name
+    event ResolverUpdated(uint256 indexed id, address resolver);
 
     event RegistrarAdded(address registrar);
     event RegistrarRemoved(address registrar);
@@ -76,7 +89,9 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
 
     /// @dev Only the owner of the node, an operator approved by the owner, the address approved for the token or a
     ///      registrar can call the function. This matches who can update the node's records.
-    modifier onlyOwnerOrRegistrar(bytes32 node) {
+    modifier onlyOwnerOrRegistrar(
+        bytes32 node
+    ) {
         _onlyOwnerOrRegistrar(node);
         _;
     }
@@ -116,6 +131,11 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         // Registry
         baseNode = node;
         names[baseNode] = dnsEncodedName;
+
+        // Emit events before `_safeMint()` which calls `onERC721Received()` on `admin`
+        emit SubnodeCreated(node, dnsEncodedName, admin);
+        _emitBaseNameRegistered(dnsEncodedName);
+        emit ResolverUpdated(uint256(node), address(this));
         totalSupply++;
         _safeMint(admin, uint256(node));
     }
@@ -139,7 +159,6 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         bytes[] calldata data
     ) external onlyOwnerOrRegistrar(node) returns (bytes32) {
         bytes32 subnode = makeNode(node, label);
-        bytes32 labelhash = keccak256(bytes(label));
         bytes memory dnsEncodedName = _addLabel(label, names[node]);
 
         if (owner(subnode) != address(0)) {
@@ -149,8 +168,9 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         // Update state and emit events before `_safeMint()` which calls `onERC721Received()` on `_owner`
         names[subnode] = dnsEncodedName;
         totalSupply++;
-        emit NewOwner(node, labelhash, _owner);
         emit SubnodeCreated(subnode, dnsEncodedName, _owner);
+        emit NameRegistered(uint256(subnode), label, type(uint64).max, msg.sender, uint256(node));
+        emit ResolverUpdated(uint256(subnode), address(this));
 
         // Records are set after minting so the new owner is authorised for them
         _safeMint(_owner, uint256(subnode));
@@ -160,7 +180,9 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
 
     /// @notice Helper to derive a node from a name
     /// @dev In practice, this should be performed offchain
-    function namehash(string calldata _name) external pure returns (bytes32) {
+    function namehash(
+        string calldata _name
+    ) external pure returns (bytes32) {
         bytes memory dnsEncodedName = NameCoder.encode(_name);
         bytes32 node = NameCoder.namehash(dnsEncodedName, 0);
         return node;
@@ -183,7 +205,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         string calldata label
     ) public pure returns (bytes32) {
         bytes32 labelhash = keccak256(bytes(label));
-        return keccak256(abi.encodePacked(parentNode, labelhash));
+        return NameCoder.namehash(parentNode, labelhash);
     }
 
     /// @notice The admin of the registry
@@ -194,7 +216,9 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
 
     /// @notice Returns the address that owns the specified node
     /// @dev We need this because `ERC721.ownerOf()` reverts if the token doesn't exist
-    function owner(bytes32 node) public view returns (address) {
+    function owner(
+        bytes32 node
+    ) public view returns (address) {
         return _ownerOf(uint256(node));
     }
 
@@ -220,7 +244,9 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     /// @notice Adds a new registrar address
     /// @param registrar The address to grant registrar role to
     /// @dev Only callable by admin role
-    function addRegistrar(address registrar) external onlyOwner {
+    function addRegistrar(
+        address registrar
+    ) external onlyOwner {
         registrars[registrar] = true;
         emit RegistrarAdded(registrar);
     }
@@ -228,7 +254,9 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     /// @notice Removes a registrar address
     /// @param registrar The address to revoke registrar role from
     /// @dev Only callable by admin role
-    function removeRegistrar(address registrar) external onlyOwner {
+    function removeRegistrar(
+        address registrar
+    ) external onlyOwner {
         registrars[registrar] = false;
         emit RegistrarRemoved(registrar);
     }
@@ -236,7 +264,9 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     /// @notice Sets the base URI for token metadata
     /// @param baseURI The new base URI
     /// @dev Only callable by admin role
-    function setBaseURI(string calldata baseURI) external onlyOwner {
+    function setBaseURI(
+        string calldata baseURI
+    ) external onlyOwner {
         _setBaseURI(baseURI);
     }
 
@@ -244,9 +274,13 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev Adds a label to its parent DNS-encoded name
+    /// @param label The label to add
+    /// @param parentName The parent DNS-encoded name
+    /// @return ret The resulting DNS-encoded name
     function _addLabel(
         string memory label,
-        bytes memory _name
+        bytes memory parentName
     ) private pure returns (bytes memory ret) {
         if (bytes(label).length < 1) {
             revert LabelTooShort();
@@ -254,7 +288,28 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         if (bytes(label).length > 255) {
             revert LabelTooLong(label);
         }
-        return abi.encodePacked(uint8(bytes(label).length), label, _name);
+        return abi.encodePacked(uint8(bytes(label).length), label, parentName);
+    }
+
+    /// @dev Emits `NameRegistered` for the base name, split into its first label and parent node
+    /// @param dnsEncodedName The DNS-encoded base name, e.g. "\x04name\x03eth\x00"
+    function _emitBaseNameRegistered(
+        bytes memory dnsEncodedName
+    ) private {
+        (uint8 size, uint256 parentOffset) = NameCoder.nextLabel(dnsEncodedName, 0);
+
+        bytes memory label = new bytes(size);
+        for (uint256 i = 0; i < size; i++) {
+            label[i] = dnsEncodedName[i + 1];
+        }
+
+        emit NameRegistered(
+            uint256(baseNode),
+            string(label),
+            type(uint64).max,
+            msg.sender,
+            uint256(NameCoder.namehash(dnsEncodedName, parentOffset))
+        );
     }
 
     function _onlyOwner() internal view {
@@ -263,19 +318,21 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         }
     }
 
-    function _onlyOwnerOrRegistrar(bytes32 node) internal view {
+    function _onlyOwnerOrRegistrar(
+        bytes32 node
+    ) internal view {
         address nodeOwner = owner(node);
         if (
-            nodeOwner != msg.sender &&
-            !registrars[msg.sender] &&
-            !isApprovedForAll(nodeOwner, msg.sender) &&
-            _getApproved(uint256(node)) != msg.sender
+            nodeOwner != msg.sender && !registrars[msg.sender] && !isApprovedForAll(nodeOwner, msg.sender)
+                && _getApproved(uint256(node)) != msg.sender
         ) {
             revert Unauthorized(node);
         }
     }
 
-    function _setBaseURI(string calldata baseURI) private {
+    function _setBaseURI(
+        string calldata baseURI
+    ) private {
         _tokenBaseUri = baseURI;
         emit BaseURIUpdated(baseURI);
     }
@@ -284,6 +341,16 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
                                OVERRIDES
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev Emits the ENSIP-16 `TransferSingle` event alongside the ERC721 `Transfer` event
+    function _update(
+        address to,
+        uint256 tokenId,
+        address auth
+    ) internal override returns (address from) {
+        from = super._update(to, tokenId, auth);
+        emit TransferSingle(msg.sender, from, to, tokenId, 1);
+    }
+
     /// @dev Returns onchain JSON if no baseURI is set
     function tokenURI(
         uint256 tokenId
@@ -291,17 +358,9 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         if (bytes(_tokenBaseUri).length == 0) {
             _requireOwned(tokenId);
 
-            string memory json = string.concat(
-                '{"name": "',
-                NameCoder.decode(names[bytes32(tokenId)]),
-                '"}'
-            );
+            string memory json = string.concat('{"name": "', NameCoder.decode(names[bytes32(tokenId)]), '"}');
 
-            return
-                string.concat(
-                    "data:application/json;base64,",
-                    Base64.encode(bytes(json))
-                );
+            return string.concat("data:application/json;base64,", Base64.encode(bytes(json)));
         }
 
         return super.tokenURI(tokenId);

@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test} from "forge-std/Test.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import {AddrResolver} from "@ensdomains/ens-contracts/resolvers/profiles/AddrResolver.sol";
+import { Test } from "forge-std/Test.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import { AddrResolver } from "@ensdomains/ens-contracts/resolvers/profiles/AddrResolver.sol";
 
-import {L2Registry} from "src/L2Registry.sol";
-import {L2RegistryFactory} from "src/L2RegistryFactory.sol";
-import {IL2Resolver} from "src/interfaces/IL2Resolver.sol";
-import {L2SignatureRegistrar} from "src/examples/L2SignatureRegistrar.sol";
+import { L2Registry } from "src/L2Registry.sol";
+import { L2RegistryFactory } from "src/L2RegistryFactory.sol";
+import { IL2Resolver } from "src/interfaces/IL2Resolver.sol";
+import { L2SignatureRegistrar } from "src/examples/L2SignatureRegistrar.sol";
 
-import {MockERC1271Wallet} from "./mocks/MockERC1271Wallet.sol";
-import {MockRegistrar} from "./mocks/MockRegistrar.sol";
+import { MockERC1271Wallet } from "./mocks/MockERC1271Wallet.sol";
+import { MockRegistrar } from "./mocks/MockRegistrar.sol";
 
 contract L2SignatureRegistrarTest is Test {
     L2Registry public registry;
@@ -33,9 +33,7 @@ contract L2SignatureRegistrarTest is Test {
         (user2, privateKey2) = makeAddrAndKey("user2");
 
         vm.startPrank(admin);
-        L2RegistryFactory factory = new L2RegistryFactory(
-            address(new L2Registry())
-        );
+        L2RegistryFactory factory = new L2RegistryFactory(address(new L2Registry()));
         registry = L2Registry(factory.deployRegistry("testname.eth"));
         registrar = new MockRegistrar(address(registry));
         signatureRegistrar = new L2SignatureRegistrar(address(registry));
@@ -50,12 +48,7 @@ contract L2SignatureRegistrarTest is Test {
     function test_SetRecordsByRelayer() public {
         bytes[] memory data = new bytes[](2);
         data[0] = _setText(node, "key", "value");
-        data[1] = abi.encodeWithSignature(
-            "setAddr(bytes32,uint256,bytes)",
-            node,
-            60,
-            abi.encodePacked(user1)
-        );
+        data[1] = abi.encodeWithSignature("setAddr(bytes32,uint256,bytes)", node, 60, abi.encodePacked(user1));
         bytes memory signature = _sign(privateKey1, node, data, 0, deadline);
 
         // `relayer` has no permissions for `node` but can submit the signed update
@@ -69,16 +62,9 @@ contract L2SignatureRegistrarTest is Test {
 
     function test_SetRecordsSupportsAllRecordSetters() public {
         bytes[] memory data = new bytes[](4);
-        data[0] = abi.encodeWithSignature(
-            "setAddr(bytes32,address)",
-            node,
-            user2
-        );
+        data[0] = abi.encodeWithSignature("setAddr(bytes32,address)", node, user2);
         data[1] = _setText(node, "key", "value");
-        data[2] = abi.encodeCall(
-            IL2Resolver.setContenthash,
-            (node, hex"1234")
-        );
+        data[2] = abi.encodeCall(IL2Resolver.setContenthash, (node, hex"1234"));
         data[3] = abi.encodeCall(IL2Resolver.setABI, (node, 1, hex"5678"));
         bytes memory signature = _sign(privateKey1, node, data, 0, deadline);
 
@@ -108,21 +94,12 @@ contract L2SignatureRegistrarTest is Test {
     }
 
     function test_SignatureForDifferentDataReverts() public {
-        bytes memory signature = _sign(
-            privateKey1,
-            node,
-            _single(_setText(node, "url", "https://real.io")),
-            0,
-            deadline
-        );
+        bytes memory signature =
+            _sign(privateKey1, node, _single(_setText(node, "url", "https://real.io")), 0, deadline);
 
         vm.expectRevert(L2SignatureRegistrar.InvalidSignature.selector);
         signatureRegistrar.setRecords(
-            node,
-            _single(_setText(node, "urlhttps://real.i", "o")),
-            deadline,
-            user1,
-            signature
+            node, _single(_setText(node, "urlhttps://real.i", "o")), deadline, user1, signature
         );
     }
 
@@ -130,13 +107,7 @@ contract L2SignatureRegistrarTest is Test {
         bytes[] memory data = _single(_setText(node, "key", "value"));
         bytes memory signature = _sign(privateKey2, node, data, 0, deadline);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                L2SignatureRegistrar.Unauthorized.selector,
-                user2,
-                node
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(L2SignatureRegistrar.Unauthorized.selector, user2, node));
         signatureRegistrar.setRecords(node, data, deadline, user2, signature);
     }
 
@@ -155,26 +126,18 @@ contract L2SignatureRegistrarTest is Test {
         bytes[] memory data = _single(_setText(otherNode, "key", "value"));
         bytes memory signature = _sign(privateKey1, node, data, 0, deadline);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                L2SignatureRegistrar.NodeMismatch.selector,
-                otherNode
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(L2SignatureRegistrar.NodeMismatch.selector, otherNode));
         signatureRegistrar.setRecords(node, data, deadline, user1, signature);
         assertEq(registry.text(otherNode, "key"), "");
     }
 
     function test_UnsupportedCallReverts() public {
-        bytes[] memory data = _single(
-            abi.encodeWithSignature("clearRecords(bytes32)", node)
-        );
+        bytes[] memory data = _single(abi.encodeWithSignature("clearRecords(bytes32)", node));
         bytes memory signature = _sign(privateKey1, node, data, 0, deadline);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                L2SignatureRegistrar.UnsupportedCall.selector,
-                bytes4(keccak256("clearRecords(bytes32)"))
+                L2SignatureRegistrar.UnsupportedCall.selector, bytes4(keccak256("clearRecords(bytes32)"))
             )
         );
         signatureRegistrar.setRecords(node, data, deadline, user1, signature);
@@ -236,42 +199,18 @@ contract L2SignatureRegistrarTest is Test {
         bytes32 walletNode = registrar.register("wallet", address(wallet));
 
         bytes[] memory data = _single(_setText(walletNode, "key", "value"));
-        bytes memory signature = _sign(
-            privateKey2,
-            walletNode,
-            data,
-            0,
-            deadline
-        );
-        signatureRegistrar.setRecords(
-            walletNode,
-            data,
-            deadline,
-            address(wallet),
-            signature
-        );
+        bytes memory signature = _sign(privateKey2, walletNode, data, 0, deadline);
+        signatureRegistrar.setRecords(walletNode, data, deadline, address(wallet), signature);
 
         assertEq(registry.text(walletNode, "key"), "value");
     }
 
     function test_InvalidEVMAddressReverts() public {
-        bytes[] memory data = _single(
-            abi.encodeWithSignature(
-                "setAddr(bytes32,uint256,bytes)",
-                node,
-                60,
-                hex"1234"
-            )
-        );
+        bytes[] memory data = _single(abi.encodeWithSignature("setAddr(bytes32,uint256,bytes)", node, 60, hex"1234"));
         bytes memory signature = _sign(privateKey1, node, data, 0, deadline);
 
         // The registry's own validation runs and its revert reason is bubbled up
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                AddrResolver.InvalidEVMAddress.selector,
-                hex"1234"
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(AddrResolver.InvalidEVMAddress.selector, hex"1234"));
         signatureRegistrar.setRecords(node, data, deadline, user1, signature);
     }
 
@@ -287,7 +226,9 @@ contract L2SignatureRegistrarTest is Test {
         return abi.encodeCall(IL2Resolver.setText, (_node, key, value));
     }
 
-    function _single(bytes memory call) private pure returns (bytes[] memory) {
+    function _single(
+        bytes memory call
+    ) private pure returns (bytes[] memory) {
         bytes[] memory data = new bytes[](1);
         data[0] = call;
         return data;
@@ -308,9 +249,7 @@ contract L2SignatureRegistrarTest is Test {
 
         bytes32 structHash = keccak256(
             abi.encode(
-                keccak256(
-                    "SetRecords(bytes32 node,bytes[] data,uint256 nonce,uint256 deadline)"
-                ),
+                keccak256("SetRecords(bytes32 node,bytes[] data,uint256 nonce,uint256 deadline)"),
                 _node,
                 keccak256(abi.encodePacked(hashes)),
                 nonce,
@@ -319,9 +258,7 @@ contract L2SignatureRegistrarTest is Test {
         );
         bytes32 domainSeparator = keccak256(
             abi.encode(
-                keccak256(
-                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-                ),
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
                 keccak256("Durin Signature Registrar"),
                 keccak256("1"),
                 block.chainid,
@@ -329,10 +266,8 @@ contract L2SignatureRegistrarTest is Test {
             )
         );
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
-            privateKey,
-            MessageHashUtils.toTypedDataHash(domainSeparator, structHash)
-        );
+        (uint8 v, bytes32 r, bytes32 s) =
+            vm.sign(privateKey, MessageHashUtils.toTypedDataHash(domainSeparator, structHash));
         return abi.encodePacked(r, s, v);
     }
 }

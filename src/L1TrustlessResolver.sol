@@ -8,29 +8,33 @@ pragma solidity ^0.8.20;
 // ▐▌  ▐▌▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖▗▄▄▞▘  █ ▝▚▄▞▘▐▌  ▐▌▐▙▄▄▖
 // ***********************************************
 
-import {ENS} from "@ensdomains/ens-contracts/registry/ENS.sol";
-import {GatewayFetcher, GatewayRequest} from "@unruggable/gateways/GatewayFetcher.sol";
-import {GatewayFetchTarget, IGatewayVerifier} from "@unruggable/gateways/GatewayFetchTarget.sol";
-import {IABIResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IABIResolver.sol";
-import {IAddressResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IAddressResolver.sol";
-import {IAddrResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IAddrResolver.sol";
-import {IContentHashResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IContentHashResolver.sol";
-import {IExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IExtendedResolver.sol";
-import {ITextResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ITextResolver.sol";
-import {NameCoder} from "@ensdomains/ens-contracts/utils/NameCoder.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {strings} from "@arachnid/string-utils/strings.sol";
+import { ENS } from "@ensdomains/ens-contracts/registry/ENS.sol";
+import { GatewayFetcher, GatewayRequest } from "@unruggable/gateways/GatewayFetcher.sol";
+import { GatewayFetchTarget, IGatewayVerifier } from "@unruggable/gateways/GatewayFetchTarget.sol";
+import { IABIResolver } from "@ensdomains/ens-contracts/resolvers/profiles/IABIResolver.sol";
+import { IAddressResolver } from "@ensdomains/ens-contracts/resolvers/profiles/IAddressResolver.sol";
+import { IAddrResolver } from "@ensdomains/ens-contracts/resolvers/profiles/IAddrResolver.sol";
+import { IContentHashResolver } from "@ensdomains/ens-contracts/resolvers/profiles/IContentHashResolver.sol";
+import { IExtendedResolver } from "@ensdomains/ens-contracts/resolvers/profiles/IExtendedResolver.sol";
+import { ITextResolver } from "@ensdomains/ens-contracts/resolvers/profiles/ITextResolver.sol";
+import { NameCoder } from "@ensdomains/ens-contracts/utils/NameCoder.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { strings } from "@arachnid/string-utils/strings.sol";
 
-import {IOperationRouter} from "./interfaces/IOperationRouter.sol";
+import { IOffchainResolverMetadataProvider } from "./interfaces/IOffchainResolverMetadataProvider.sol";
+import { IOperationRouter } from "./interfaces/IOperationRouter.sol";
+import { IUniversalHelper } from "./interfaces/IUniversalHelper.sol";
 
 interface INameWrapper {
-    function ownerOf(uint256 id) external view returns (address owner);
+    function ownerOf(
+        uint256 id
+    ) external view returns (address owner);
 }
 
 /// @author NameStone
 /// @notice ENS resolver that directs all queries to Unruggable Gateways for trustless resolution of data from L2s.
 /// @dev Callers must implement EIP-3668 and ENSIP-10.
-contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
+contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, IOffchainResolverMetadataProvider, Ownable {
     using GatewayFetcher for GatewayRequest;
 
     /*//////////////////////////////////////////////////////////////
@@ -60,21 +64,13 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     INameWrapper public immutable nameWrapper;
+    /// @dev Used to look up ENSv2 owners. Zero address if ENSv2 is not deployed.
+    IUniversalHelper public immutable universalHelper;
 
     mapping(bytes32 node => L2Registry l2Registry) public l2Registry;
 
     /// @dev Mapping of chainId to verifier
     mapping(uint64 => IGatewayVerifier) public verifier;
-
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    event L2RegistrySet(
-        bytes32 node,
-        uint64 targetChainId,
-        address targetRegistryAddress
-    );
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -92,40 +88,43 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address _owner) Ownable(_owner) {
+    constructor(
+        address _owner,
+        IUniversalHelper _universalHelper
+    ) Ownable(_owner) {
         // Get the NameWrapper address from namewrapper.eth
         // This allows us to have the same deploy bytecode on mainnet and sepolia
         bytes32 wrapperNode = 0xdee478ba2734e34d81c6adc77a32d75b29007895efa2fe60921f1c315e1ec7d9; // namewrapper.eth
         address wrapperResolver = ens.resolver(wrapperNode);
         address wrapperAddr = IAddrResolver(wrapperResolver).addr(wrapperNode);
         nameWrapper = INameWrapper(wrapperAddr);
+
+        universalHelper = _universalHelper;
     }
 
     /*//////////////////////////////////////////////////////////////
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Specify the L2 registry for a given name. Should only be used with 2LDs, e.g. "nick.eth".
+    /// @notice Specify the L2 registry for a given name
+    /// @dev Should only be used with 2LDs, e.g. "nick.eth". Callable by the name's ENSv2 owner, or its ENSv1 owner
+    ///      if the name has no ENSv2 owner.
+    /// @param name DNS-encoded name
+    /// @param targetChainId Chain identifier
+    /// @param targetRegistryAddress Registry address on target chain
     function setL2Registry(
-        bytes32 node,
+        bytes calldata name,
         uint64 targetChainId,
         address targetRegistryAddress
     ) external {
-        address owner = ens.owner(node);
+        bytes32 node = NameCoder.namehash(name, 0);
 
-        if (owner == address(nameWrapper)) {
-            owner = nameWrapper.ownerOf(uint256(node));
-        }
-
-        if (owner != msg.sender) {
+        if (_findOwner(name, node) != msg.sender) {
             revert Unauthorized();
         }
 
-        l2Registry[node] = L2Registry({
-            chainId: targetChainId,
-            registryAddress: targetRegistryAddress
-        });
-        emit L2RegistrySet(node, targetChainId, targetRegistryAddress);
+        l2Registry[node] = L2Registry({ chainId: targetChainId, registryAddress: targetRegistryAddress });
+        emit MetadataChanged(name, new string[](0), targetChainId, targetRegistryAddress);
     }
 
     /// @notice Resolves a name, as specified by ENSIP 10.
@@ -140,10 +139,7 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
         L2Registry memory targetL2Registry = l2Registry[parentNode];
         IGatewayVerifier v = verifier[targetL2Registry.chainId];
 
-        if (
-            targetL2Registry.registryAddress == address(0) ||
-            address(v) == address(0)
-        ) {
+        if (targetL2Registry.registryAddress == address(0) || address(v) == address(0)) {
             revert UnreachableName(name);
         }
 
@@ -152,10 +148,7 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
 
         // ENSIP-20 / ERC-7884
         if (selector == IOperationRouter.getOperationHandler.selector) {
-            revert IOperationRouter.OperationHandledOnchain(
-                targetL2Registry.chainId,
-                targetL2Registry.registryAddress
-            );
+            revert IOperationRouter.OperationHandledOnchain(targetL2Registry.chainId, targetL2Registry.registryAddress);
         }
 
         // Build a Unruggable Gateways request based on the function selector of the passed calldata
@@ -197,6 +190,15 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
         fetch(v, req, this.resolveCallback.selector, data, v.gatewayURLs());
     }
 
+    /// @inheritdoc IOffchainResolverMetadataProvider
+    function metadata(
+        bytes calldata name
+    ) external view returns (string[] memory rpcUrls, uint256 chainId, address baseRegistry) {
+        L2Registry memory targetL2Registry = l2Registry[getParentNode(name)];
+
+        return (new string[](0), targetL2Registry.chainId, targetL2Registry.registryAddress);
+    }
+
     /// @notice The callback for the `OffchainLookup` triggered by our implementation of `IExtendedResolver` (ENSIP-10).
     function resolveCallback(
         bytes[] memory values,
@@ -212,8 +214,11 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
         return abi.encode(value);
     }
 
-    function supportsInterface(bytes4 id) external pure returns (bool) {
-        return id == type(IExtendedResolver).interfaceId || id == 0x01ffc9a7; // ERC-165 interface
+    function supportsInterface(
+        bytes4 id
+    ) external pure returns (bool) {
+        return id == type(IExtendedResolver).interfaceId || id == type(IOffchainResolverMetadataProvider).interfaceId
+            || id == 0x01ffc9a7; // ERC-165 interface
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -232,6 +237,24 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev Returns the ENSv2 owner of a name, falling back to the ENSv1 owner if there is none
+    function _findOwner(
+        bytes calldata name,
+        bytes32 node
+    ) internal view returns (address owner) {
+        if (address(universalHelper) != address(0)) {
+            owner = universalHelper.findExactOwner(name);
+            if (owner != address(0)) {
+                return owner;
+            }
+        }
+
+        owner = ens.owner(node);
+        if (owner == address(nameWrapper)) {
+            owner = nameWrapper.ownerOf(uint256(node));
+        }
+    }
+
     function getParentNode(
         bytes calldata name
     ) internal pure returns (bytes32) {
@@ -241,16 +264,12 @@ contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, Ownable {
         string[] memory parts = new string[](strings.count(s, delim) + 1);
 
         // Populate the parts array into ['sub', 'name', 'eth']
-        for (uint i = 0; i < parts.length; i++) {
+        for (uint256 i = 0; i < parts.length; i++) {
             parts[i] = strings.toString(strings.split(s, delim));
         }
 
         // Get the 2LD + TLD (final 2 parts), regardless of how many labels the name has
-        string memory parentName = string.concat(
-            parts[parts.length - 2],
-            ".",
-            parts[parts.length - 1]
-        );
+        string memory parentName = string.concat(parts[parts.length - 2], ".", parts[parts.length - 1]);
 
         bytes memory parentNameBytes = NameCoder.encode(parentName);
         return NameCoder.namehash(parentNameBytes, 0);

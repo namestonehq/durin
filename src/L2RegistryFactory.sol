@@ -8,9 +8,9 @@ pragma solidity ^0.8.20;
 // ▐▌  ▐▌▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖▗▄▄▞▘  █ ▝▚▄▞▘▐▌  ▐▌▐▙▄▄▖
 // ***********************************************
 
-import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
+import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
-import {IL2Registry} from "./interfaces/IL2Registry.sol";
+import { IL2Registry } from "./interfaces/IL2Registry.sol";
 
 /// @title Durin Registry Factory
 /// @author NameStone
@@ -37,7 +37,9 @@ contract L2RegistryFactory {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address _registryImplementation) {
+    constructor(
+        address _registryImplementation
+    ) {
         registryImplementation = _registryImplementation;
     }
 
@@ -48,7 +50,9 @@ contract L2RegistryFactory {
     /// @notice Deploys a new L2Registry contract with default parameters
     /// @param name The parent ENS name for the registry, e.g. "example.eth"
     /// @return address The address of the newly deployed registry clone
-    function deployRegistry(string calldata name) external returns (address) {
+    function deployRegistry(
+        string calldata name
+    ) external returns (address) {
         return deployRegistry(name, "", "", msg.sender);
     }
 

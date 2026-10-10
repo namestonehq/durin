@@ -10,5 +10,7 @@ interface IOperationRouter {
 
     /// @notice Determines the appropriate handler for an encoded function call
     /// @param encodedFunction The ABI encoded function call
-    function getOperationHandler(bytes calldata encodedFunction) external view;
+    function getOperationHandler(
+        bytes calldata encodedFunction
+    ) external view;
 }

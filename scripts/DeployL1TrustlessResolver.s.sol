@@ -16,7 +16,8 @@ contract DeployL1TrustlessResolver is Script {
         vm.startBroadcast();
 
         new L1TrustlessResolver{salt: 0}(
-            vm.envAddress("L1_RESOLVER_OWNER") // owner
+            vm.envAddress("L1_RESOLVER_OWNER"), // owner
+            IUniversalHelper(vm.envOr("UNIVERSAL_HELPER", address(0)))
         );
 
         vm.stopBroadcast();

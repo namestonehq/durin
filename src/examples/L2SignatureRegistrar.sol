@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import {Nonces} from "@openzeppelin/contracts/utils/Nonces.sol";
-import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import { Nonces } from "@openzeppelin/contracts/utils/Nonces.sol";
+import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
-import {IL2Registry} from "../interfaces/IL2Registry.sol";
-import {IL2Resolver} from "../interfaces/IL2Resolver.sol";
+import { IL2Registry } from "../interfaces/IL2Registry.sol";
+import { IL2Resolver } from "../interfaces/IL2Resolver.sol";
 
 /// @dev This is an example registrar contract that is meant to be modified.
 ///      It lets anyone submit record updates that were signed by an address authorised for a name, so the signer
@@ -15,14 +15,10 @@ import {IL2Resolver} from "../interfaces/IL2Resolver.sol";
 contract L2SignatureRegistrar is EIP712, Nonces {
     /// @notice EIP-712 typehash for a batch of record updates
     bytes32 public constant SET_RECORDS_TYPEHASH =
-        keccak256(
-            "SetRecords(bytes32 node,bytes[] data,uint256 nonce,uint256 deadline)"
-        );
+        keccak256("SetRecords(bytes32 node,bytes[] data,uint256 nonce,uint256 deadline)");
 
-    bytes4 private constant SET_ADDR =
-        bytes4(keccak256("setAddr(bytes32,address)"));
-    bytes4 private constant SET_ADDR_WITH_COIN_TYPE =
-        bytes4(keccak256("setAddr(bytes32,uint256,bytes)"));
+    bytes4 private constant SET_ADDR = bytes4(keccak256("setAddr(bytes32,address)"));
+    bytes4 private constant SET_ADDR_WITH_COIN_TYPE = bytes4(keccak256("setAddr(bytes32,uint256,bytes)"));
 
     /// @notice Reference to the target registry contract
     IL2Registry public immutable registry;
@@ -44,7 +40,9 @@ contract L2SignatureRegistrar is EIP712, Nonces {
 
     /// @notice Initializes the registrar with a registry contract
     /// @param _registry Address of the L2Registry contract
-    constructor(address _registry) EIP712("Durin Signature Registrar", "1") {
+    constructor(
+        address _registry
+    ) EIP712("Durin Signature Registrar", "1") {
         registry = IL2Registry(_registry);
     }
 
@@ -66,15 +64,7 @@ contract L2SignatureRegistrar is EIP712, Nonces {
         }
 
         bytes32 digest = _hashTypedDataV4(
-            keccak256(
-                abi.encode(
-                    SET_RECORDS_TYPEHASH,
-                    node,
-                    _hashData(data),
-                    _useNonce(signer),
-                    deadline
-                )
-            )
+            keccak256(abi.encode(SET_RECORDS_TYPEHASH, node, _hashData(data), _useNonce(signer), deadline))
         );
 
         if (!SignatureChecker.isValidSignatureNow(signer, digest, signature)) {
@@ -115,23 +105,20 @@ contract L2SignatureRegistrar is EIP712, Nonces {
         uint256 tokenId = uint256(node);
         address owner = registry.ownerOf(tokenId);
 
-        return
-            signer == owner ||
-            registry.isApprovedForAll(owner, signer) ||
-            registry.getApproved(tokenId) == signer;
+        return signer == owner || registry.isApprovedForAll(owner, signer) || registry.getApproved(tokenId) == signer;
     }
 
-    function _isRecordSetter(bytes4 selector) private pure returns (bool) {
-        return
-            selector == SET_ADDR ||
-            selector == SET_ADDR_WITH_COIN_TYPE ||
-            selector == IL2Resolver.setText.selector ||
-            selector == IL2Resolver.setContenthash.selector ||
-            selector == IL2Resolver.setABI.selector;
+    function _isRecordSetter(
+        bytes4 selector
+    ) private pure returns (bool) {
+        return selector == SET_ADDR || selector == SET_ADDR_WITH_COIN_TYPE || selector == IL2Resolver.setText.selector
+            || selector == IL2Resolver.setContenthash.selector || selector == IL2Resolver.setABI.selector;
     }
 
     /// @dev EIP-712 encoding of `bytes[]`: the hash of the concatenated hashes of each element
-    function _hashData(bytes[] calldata data) private pure returns (bytes32) {
+    function _hashData(
+        bytes[] calldata data
+    ) private pure returns (bytes32) {
         bytes32[] memory hashes = new bytes32[](data.length);
         for (uint256 i = 0; i < data.length; i++) {
             hashes[i] = keccak256(data[i]);

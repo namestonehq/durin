@@ -8,28 +8,21 @@ pragma solidity ^0.8.20;
 // ▐▌  ▐▌▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖▗▄▄▞▘  █ ▝▚▄▞▘▐▌  ▐▌▐▙▄▄▖
 // ***********************************************
 
-import {ABIResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ABIResolver.sol";
-import {AddrResolver} from "@ensdomains/ens-contracts/resolvers/profiles/AddrResolver.sol";
-import {COIN_TYPE_DEFAULT, ENSIP19} from "@ensdomains/ens-contracts/utils/ENSIP19.sol";
-import {ContentHashResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ContentHashResolver.sol";
-import {ExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ExtendedResolver.sol";
-import {Multicallable} from "@ensdomains/ens-contracts/resolvers/Multicallable.sol";
-import {TextResolver} from "@ensdomains/ens-contracts/resolvers/profiles/TextResolver.sol";
+import { ABIResolver } from "@ensdomains/ens-contracts/resolvers/profiles/ABIResolver.sol";
+import { AddrResolver } from "@ensdomains/ens-contracts/resolvers/profiles/AddrResolver.sol";
+import { COIN_TYPE_DEFAULT, ENSIP19 } from "@ensdomains/ens-contracts/utils/ENSIP19.sol";
+import { ContentHashResolver } from "@ensdomains/ens-contracts/resolvers/profiles/ContentHashResolver.sol";
+import { ExtendedResolver } from "@ensdomains/ens-contracts/resolvers/profiles/ExtendedResolver.sol";
+import { Multicallable } from "@ensdomains/ens-contracts/resolvers/Multicallable.sol";
+import { TextResolver } from "@ensdomains/ens-contracts/resolvers/profiles/TextResolver.sol";
 
-import {L2Registry} from "./L2Registry.sol";
+import { L2Registry } from "./L2Registry.sol";
 
 /// @title Durin Resolver
 /// @author NameStone
 /// @notice Resolver to store standard ENS records
 /// @dev This contract is inherited by L2Registry, making registry methods available via `address(this)`
-contract L2Resolver is
-    Multicallable,
-    ABIResolver,
-    AddrResolver,
-    ContentHashResolver,
-    TextResolver,
-    ExtendedResolver
-{
+contract L2Resolver is Multicallable, ABIResolver, AddrResolver, ContentHashResolver, TextResolver, ExtendedResolver {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -49,9 +42,7 @@ contract L2Resolver is
         addressBytes = super.addr(node, coinType);
 
         // Lookup default EVM address if no address is found
-        if (
-            addressBytes.length == 0 && ENSIP19.chainFromCoinType(coinType) > 0
-        ) {
+        if (addressBytes.length == 0 && ENSIP19.chainFromCoinType(coinType) > 0) {
             addressBytes = super.addr(node, COIN_TYPE_DEFAULT);
         }
     }
@@ -75,11 +66,7 @@ contract L2Resolver is
         uint256 tokenId = uint256(_node);
         address owner = registry.ownerOf(tokenId);
 
-        if (
-            owner != _addr &&
-            !registry.isApprovedForAll(owner, _addr) &&
-            registry.getApproved(tokenId) != _addr
-        ) {
+        if (owner != _addr && !registry.isApprovedForAll(owner, _addr) && registry.getApproved(tokenId) != _addr) {
             revert Unauthorized(_node);
         }
 
@@ -95,7 +82,9 @@ contract L2Resolver is
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Reverts instead of returning false so the modifier that uses this function has better error messages
-    function isAuthorised(bytes32 node) internal view override returns (bool) {
+    function isAuthorised(
+        bytes32 node
+    ) internal view override returns (bool) {
         return _isAuthorisedForAddress(msg.sender, node);
     }
 
@@ -105,13 +94,7 @@ contract L2Resolver is
         public
         view
         virtual
-        override(
-            Multicallable,
-            ABIResolver,
-            AddrResolver,
-            ContentHashResolver,
-            TextResolver
-        )
+        override(Multicallable, ABIResolver, AddrResolver, ContentHashResolver, TextResolver)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
