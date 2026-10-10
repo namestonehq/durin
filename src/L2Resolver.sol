@@ -13,7 +13,7 @@ import {AddrResolver} from "@ensdomains/ens-contracts/resolvers/profiles/AddrRes
 import {COIN_TYPE_DEFAULT, ENSIP19} from "@ensdomains/ens-contracts/utils/ENSIP19.sol";
 import {ContentHashResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ContentHashResolver.sol";
 import {ExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ExtendedResolver.sol";
-import {Multicallable} from "@ensdomains/ens-contracts/resolvers/Multicallable.sol";
+import {IMulticallable} from "@ensdomains/ens-contracts/resolvers/IMulticallable.sol";
 import {TextResolver} from "@ensdomains/ens-contracts/resolvers/profiles/TextResolver.sol";
 
 import {L2Registry} from "./L2Registry.sol";
@@ -23,7 +23,7 @@ import {L2Registry} from "./L2Registry.sol";
 /// @notice Resolver to store standard ENS records
 /// @dev This contract is inherited by L2Registry, making registry methods available via `address(this)`
 contract L2Resolver is
-    Multicallable,
+    IMulticallable,
     ABIResolver,
     AddrResolver,
     ContentHashResolver,
@@ -35,10 +35,29 @@ contract L2Resolver is
     //////////////////////////////////////////////////////////////*/
 
     error Unauthorized(bytes32 node);
+    error NodeMismatch(bytes32 callNode);
 
     /*//////////////////////////////////////////////////////////////
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    // Multicall is implemented here instead of inheriting `Multicallable` from ens-contracts, which reverts with no
+    // data when a call fails and hides the reason
+
+    /// @inheritdoc IMulticallable
+    function multicall(
+        bytes[] calldata data
+    ) external returns (bytes[] memory results) {
+        return _multicall(bytes32(0), data);
+    }
+
+    /// @inheritdoc IMulticallable
+    function multicallWithNodeCheck(
+        bytes32 nodehash,
+        bytes[] calldata data
+    ) external returns (bytes[] memory results) {
+        return _multicall(nodehash, data);
+    }
 
     /// Override the inherited function to support default EVM address
     /// @inheritdoc AddrResolver
@@ -86,6 +105,34 @@ contract L2Resolver is
         return true;
     }
 
+    /// @dev Calls each item in `data` on this contract, keeping `msg.sender`. If `nodehash` is not zero, every call
+    ///      must have it as its first argument.
+    function _multicall(
+        bytes32 nodehash,
+        bytes[] calldata data
+    ) internal returns (bytes[] memory results) {
+        results = new bytes[](data.length);
+        for (uint256 i = 0; i < data.length; i++) {
+            if (nodehash != bytes32(0)) {
+                bytes32 callNode = bytes32(data[i][4:36]);
+                if (callNode != nodehash) {
+                    revert NodeMismatch(callNode);
+                }
+            }
+
+            (bool success, bytes memory result) = address(this).delegatecall(
+                data[i]
+            );
+            if (!success) {
+                // Bubble up the revert reason
+                assembly ("memory-safe") {
+                    revert(add(result, 32), mload(result))
+                }
+            }
+            results[i] = result;
+        }
+    }
+
     function _registry() internal view returns (L2Registry) {
         return L2Registry(address(this));
     }
@@ -105,15 +152,11 @@ contract L2Resolver is
         public
         view
         virtual
-        override(
-            Multicallable,
-            ABIResolver,
-            AddrResolver,
-            ContentHashResolver,
-            TextResolver
-        )
+        override(ABIResolver, AddrResolver, ContentHashResolver, TextResolver)
         returns (bool)
     {
-        return super.supportsInterface(interfaceId);
+        return
+            interfaceId == type(IMulticallable).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 }

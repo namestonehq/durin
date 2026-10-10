@@ -29,6 +29,7 @@ interface IL2Resolver is
     IExtendedResolver
 {
     error Unauthorized(bytes32 node);
+    error NodeMismatch(bytes32 callNode);
 
     function setABI(
         bytes32 node,

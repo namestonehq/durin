@@ -5,6 +5,11 @@ import {Test} from "forge-std/Test.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 import {NameCoder} from "@ensdomains/ens-contracts/utils/NameCoder.sol";
+import {AddrResolver} from "@ensdomains/ens-contracts/resolvers/profiles/AddrResolver.sol";
+import {IAddrResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IAddrResolver.sol";
+import {ITextResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ITextResolver.sol";
+import {IMulticallable} from "@ensdomains/ens-contracts/resolvers/IMulticallable.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import {L2Registry} from "src/L2Registry.sol";
 import {L2RegistryFactory} from "src/L2RegistryFactory.sol";
@@ -206,9 +211,11 @@ contract L2RegistryTest is Test {
             "value"
         );
 
-        // This throws from Multicallable which has `require` instead of custom error
         vm.expectRevert(
-            bytes("multicall: All records must have a matching namehash")
+            abi.encodeWithSelector(
+                IL2Resolver.NodeMismatch.selector,
+                nodeFor3ld
+            )
         );
         registry.createSubnode(nodeFor3ld, sublabel, user1, data);
         vm.stopPrank();
@@ -340,9 +347,46 @@ contract L2RegistryTest is Test {
             registry.baseNode(),
             user1
         );
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IL2Resolver.Unauthorized.selector,
+                registry.baseNode()
+            )
+        );
         registry.multicall(data);
         vm.stopPrank();
+    }
+
+    function test_SupportsInterfaces() public view {
+        assertTrue(
+            registry.supportsInterface(type(IMulticallable).interfaceId)
+        );
+        assertTrue(registry.supportsInterface(type(IAddrResolver).interfaceId));
+        assertTrue(registry.supportsInterface(type(ITextResolver).interfaceId));
+        assertTrue(registry.supportsInterface(type(IERC721).interfaceId));
+        assertFalse(registry.supportsInterface(0xffffffff));
+    }
+
+    function test_CreateSubnodeWithInvalidDataBubblesUpError() public {
+        bytes32 parentNode = _registerTo("parent", user1);
+        bytes32 childNode = registry.makeNode(parentNode, "child");
+
+        bytes[] memory data = new bytes[](1);
+        data[0] = abi.encodeWithSignature(
+            "setAddr(bytes32,uint256,bytes)",
+            childNode,
+            60,
+            hex"1234"
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AddrResolver.InvalidEVMAddress.selector,
+                hex"1234"
+            )
+        );
+        vm.prank(user1);
+        registry.createSubnode(parentNode, "child", user1, data);
     }
 
     function test_ImplementationAddressNotNull() public view {
