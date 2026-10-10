@@ -36,6 +36,8 @@ contract L2RegistryTest is Test {
         uint256 context
     );
 
+    event ResolverUpdated(uint256 indexed id, address resolver);
+
     event TransferSingle(
         address indexed operator,
         address indexed from,
@@ -61,6 +63,11 @@ contract L2RegistryTest is Test {
             type(uint64).max,
             address(factory),
             uint256(NameCoder.namehash(NameCoder.encode("eth"), 0))
+        );
+        vm.expectEmit(false, false, false, false);
+        emit ResolverUpdated(
+            uint256(NameCoder.namehash(NameCoder.encode("testname.eth"), 0)),
+            address(0) // registry address isn't known before deployment
         );
         registry = L2Registry(factory.deployRegistry("testname.eth"));
         registrar = new MockRegistrar(address(registry));
@@ -112,6 +119,8 @@ contract L2RegistryTest is Test {
             address(registrar),
             uint256(registry.baseNode())
         );
+        vm.expectEmit(address(registry));
+        emit ResolverUpdated(uint256(expectedNode), address(registry));
         vm.expectEmit(address(registry));
         emit TransferSingle(
             address(registrar),

@@ -75,6 +75,12 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         uint256 value
     );
 
+    /// @notice Emitted when the resolver of a name is set (ENSIP-16)
+    /// @dev The registry is the resolver for every name, so this is always `address(this)`
+    /// @param id The token ID of the name, `uint256(node)`
+    /// @param resolver The resolver of the name
+    event ResolverUpdated(uint256 indexed id, address resolver);
+
     event RegistrarAdded(address registrar);
     event RegistrarRemoved(address registrar);
     event BaseURIUpdated(string baseURI);
@@ -137,6 +143,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
         // Emit events before `_safeMint()` which calls `onERC721Received()` on `admin`
         emit SubnodeCreated(node, dnsEncodedName, admin);
         _emitBaseNameRegistered(dnsEncodedName);
+        emit ResolverUpdated(uint256(node), address(this));
         totalSupply++;
         _safeMint(admin, uint256(node));
     }
@@ -177,6 +184,7 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
             msg.sender,
             uint256(node)
         );
+        emit ResolverUpdated(uint256(subnode), address(this));
 
         // Records are set after minting so the new owner is authorised for them
         _safeMint(_owner, uint256(subnode));
