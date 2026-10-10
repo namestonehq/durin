@@ -11,8 +11,7 @@ import {IL2Resolver} from "../interfaces/IL2Resolver.sol";
 
 /// @dev This is an example registrar contract that is meant to be modified.
 ///      It lets anyone submit record updates that were signed by an address authorised for a name, so the signer
-///      doesn't need to send a transaction. Enable it by calling `addRegistrar()` on the registry.
-///      Registrars can update the records of any name, so this contract must only act on valid signatures.
+///      doesn't need to send a transaction.
 contract L2SignatureRegistrar is EIP712, Nonces {
     /// @notice EIP-712 typehash for a batch of record updates
     bytes32 public constant SET_RECORDS_TYPEHASH =
