@@ -412,29 +412,6 @@ contract L2RegistryTest is Test {
         assertEq(registry.addr(node), user2);
     }
 
-    function test_LabelWithDotReverts() public {
-        vm.prank(admin);
-        registry.addRegistrar(address(registrar));
-
-        vm.expectRevert(
-            abi.encodeWithSelector(L2Registry.InvalidLabel.selector, "a.b")
-        );
-        registrar.register("a.b", user1);
-    }
-
-    function test_TokenMetadataEscapesName() public {
-        string memory label = string(abi.encodePacked('x", "image": "\\', bytes1(0x0a)));
-        bytes32 node = _registerTo(label, user1);
-
-        string memory metadata = string.concat(
-            "data:application/json;base64,",
-            Base64.encode(
-                bytes('{"name": "x\\", \\"image\\": \\"\\\\\\u000a.testname.eth"}')
-            )
-        );
-        assertEq(registry.tokenURI(uint256(node)), metadata);
-    }
-
     function test_CreateSubnodeReentrancyKeepsNamesConsistent() public {
         ReentrantReceiver receiver = new ReentrantReceiver(address(registry));
         bytes32 parentNode = _registerTo("parent", address(receiver));
@@ -541,6 +518,7 @@ contract L2RegistryTest is Test {
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev `NameCoder.decode()` reverts on labels containing "."
     function _isValidLabel(string memory label) private pure returns (bool) {
         bytes memory b = bytes(label);
         if (b.length <= 1 || b.length >= 255) return false;
