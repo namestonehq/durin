@@ -10,20 +10,8 @@ interface IOffchainResolverMetadataProvider {
     /// @return baseRegistry The base registry on the target chain that emits events (may be zero).
     function metadata(
         bytes calldata name
-    )
-        external
-        view
-        returns (
-            string[] memory rpcUrls,
-            uint256 chainId,
-            address baseRegistry
-        );
+    ) external view returns (string[] memory rpcUrls, uint256 chainId, address baseRegistry);
 
     /// @notice Emitted when the metadata for a name is changed.
-    event MetadataChanged(
-        bytes name,
-        string[] rpcUrls,
-        uint256 chainId,
-        address baseRegistry
-    );
+    event MetadataChanged(bytes name, string[] rpcUrls, uint256 chainId, address baseRegistry);
 }

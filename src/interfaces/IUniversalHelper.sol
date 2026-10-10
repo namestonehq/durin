@@ -7,5 +7,7 @@ interface IUniversalHelper {
     /// @notice Find the exact owner for `name`.
     /// @param name The DNS-encoded name.
     /// @return The owner address or null if unowned or not found.
-    function findExactOwner(bytes calldata name) external view returns (address);
+    function findExactOwner(
+        bytes calldata name
+    ) external view returns (address);
 }

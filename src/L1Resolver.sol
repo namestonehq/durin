@@ -8,16 +8,16 @@ pragma solidity ^0.8.20;
 // ▐▌  ▐▌▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖▗▄▄▞▘  █ ▝▚▄▞▘▐▌  ▐▌▐▙▄▄▖
 // ***********************************************
 
-import {ENS} from "@ensdomains/ens-contracts/registry/ENS.sol";
-import {IExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IExtendedResolver.sol";
-import {NameCoder} from "@ensdomains/ens-contracts/utils/NameCoder.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {strings} from "@arachnid/string-utils/strings.sol";
+import { ENS } from "@ensdomains/ens-contracts/registry/ENS.sol";
+import { IExtendedResolver } from "@ensdomains/ens-contracts/resolvers/profiles/IExtendedResolver.sol";
+import { NameCoder } from "@ensdomains/ens-contracts/utils/NameCoder.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { strings } from "@arachnid/string-utils/strings.sol";
 
-import {IOffchainResolverMetadataProvider} from "./interfaces/IOffchainResolverMetadataProvider.sol";
-import {IOperationRouter} from "./interfaces/IOperationRouter.sol";
-import {IUniversalHelper} from "./interfaces/IUniversalHelper.sol";
-import {SignatureVerifier} from "./lib/SignatureVerifier.sol";
+import { IOffchainResolverMetadataProvider } from "./interfaces/IOffchainResolverMetadataProvider.sol";
+import { IOperationRouter } from "./interfaces/IOperationRouter.sol";
+import { IUniversalHelper } from "./interfaces/IUniversalHelper.sol";
+import { SignatureVerifier } from "./lib/SignatureVerifier.sol";
 
 interface IResolverService {
     function stuffedResolveCall(
@@ -25,28 +25,25 @@ interface IResolverService {
         bytes calldata data,
         uint64 targetChainId,
         address targetRegistryAddress
-    )
-        external
-        view
-        returns (bytes memory result, uint64 expires, bytes memory sig);
+    ) external view returns (bytes memory result, uint64 expires, bytes memory sig);
 }
 
 interface IResolver {
-    function addr(bytes32 node) external view returns (address);
+    function addr(
+        bytes32 node
+    ) external view returns (address);
 }
 
 interface INameWrapper {
-    function ownerOf(uint256 id) external view returns (address owner);
+    function ownerOf(
+        uint256 id
+    ) external view returns (address owner);
 }
 
 /// @author NameStone
 /// @notice ENS resolver that directs all queries to a CCIP Read gateway.
 /// @dev Callers must implement EIP-3668 and ENSIP-10.
-contract L1Resolver is
-    IExtendedResolver,
-    IOffchainResolverMetadataProvider,
-    Ownable
-{
+contract L1Resolver is IExtendedResolver, IOffchainResolverMetadataProvider, Ownable {
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -88,13 +85,7 @@ contract L1Resolver is
     error Unauthorized();
     error InvalidSignature();
     error UnsupportedName();
-    error OffchainLookup(
-        address sender,
-        string[] urls,
-        bytes callData,
-        bytes4 callbackFunction,
-        bytes extraData
-    );
+    error OffchainLookup(address sender, string[] urls, bytes callData, bytes4 callbackFunction, bytes extraData);
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -142,16 +133,8 @@ contract L1Resolver is
             revert Unauthorized();
         }
 
-        l2Registry[node] = L2Registry({
-            chainId: targetChainId,
-            registryAddress: targetRegistryAddress
-        });
-        emit MetadataChanged(
-            name,
-            new string[](0),
-            targetChainId,
-            targetRegistryAddress
-        );
+        l2Registry[node] = L2Registry({ chainId: targetChainId, registryAddress: targetRegistryAddress });
+        emit MetadataChanged(name, new string[](0), targetChainId, targetRegistryAddress);
     }
 
     /// @notice Resolves a name, as specified by ENSIP 10.
@@ -167,19 +150,10 @@ contract L1Resolver is
 
         // If the calldata is intended for `getOperationHandler()`, throw the ERC-7884 error
         if (bytes4(data) == IOperationRouter.getOperationHandler.selector) {
-            revert IOperationRouter.OperationHandledOnchain(
-                targetL2Registry.chainId,
-                targetL2Registry.registryAddress
-            );
+            revert IOperationRouter.OperationHandledOnchain(targetL2Registry.chainId, targetL2Registry.registryAddress);
         }
 
-        return
-            stuffedResolveCall(
-                name,
-                data,
-                targetL2Registry.chainId,
-                targetL2Registry.registryAddress
-            );
+        return stuffedResolveCall(name, data, targetL2Registry.chainId, targetL2Registry.registryAddress);
     }
 
     /// @notice Callback used by CCIP read compatible clients to parse and verify the response.
@@ -187,10 +161,7 @@ contract L1Resolver is
         bytes calldata response,
         bytes calldata extraData
     ) external view returns (bytes memory) {
-        (address _signer, bytes memory result) = SignatureVerifier.verify(
-            extraData,
-            response
-        );
+        (address _signer, bytes memory result) = SignatureVerifier.verify(extraData, response);
 
         if (_signer != signer) {
             revert InvalidSignature();
@@ -202,31 +173,18 @@ contract L1Resolver is
     /// @inheritdoc IOffchainResolverMetadataProvider
     function metadata(
         bytes calldata name
-    )
-        external
-        view
-        returns (
-            string[] memory rpcUrls,
-            uint256 chainId,
-            address baseRegistry
-        )
-    {
+    ) external view returns (string[] memory rpcUrls, uint256 chainId, address baseRegistry) {
         bytes32 parentNode = getParentNode(name);
         L2Registry memory targetL2Registry = l2Registry[parentNode];
 
-        return (
-            new string[](0),
-            targetL2Registry.chainId,
-            targetL2Registry.registryAddress
-        );
+        return (new string[](0), targetL2Registry.chainId, targetL2Registry.registryAddress);
     }
 
-    function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
-        return
-            interfaceId == type(IExtendedResolver).interfaceId ||
-            interfaceId ==
-            type(IOffchainResolverMetadataProvider).interfaceId ||
-            interfaceId == 0x01ffc9a7; // ERC-165 interface
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public pure returns (bool) {
+        return interfaceId == type(IExtendedResolver).interfaceId
+            || interfaceId == type(IOffchainResolverMetadataProvider).interfaceId || interfaceId == 0x01ffc9a7; // ERC-165 interface
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -234,13 +192,17 @@ contract L1Resolver is
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Sets the URL for the resolver service.
-    function setURL(string calldata _url) external onlyOwner {
+    function setURL(
+        string calldata _url
+    ) external onlyOwner {
         url = _url;
         emit GatewayChanged(_url);
     }
 
     /// @notice Sets the signers for the resolver service.
-    function setSigner(address _signer) external onlyOwner {
+    function setSigner(
+        address _signer
+    ) external onlyOwner {
         signer = _signer;
         emit SignerChanged(_signer);
     }
@@ -257,11 +219,7 @@ contract L1Resolver is
         address targetRegistryAddress
     ) internal view returns (bytes memory) {
         bytes memory callData = abi.encodeWithSelector(
-            IResolverService.stuffedResolveCall.selector,
-            name,
-            data,
-            targetChainId,
-            targetRegistryAddress
+            IResolverService.stuffedResolveCall.selector, name, data, targetChainId, targetRegistryAddress
         );
 
         string[] memory urls = new string[](1);
@@ -285,16 +243,12 @@ contract L1Resolver is
         string[] memory parts = new string[](strings.count(s, delim) + 1);
 
         // Populate the parts array into ['sub', 'name', 'eth']
-        for (uint i = 0; i < parts.length; i++) {
+        for (uint256 i = 0; i < parts.length; i++) {
             parts[i] = strings.toString(strings.split(s, delim));
         }
 
         // Get the 2LD + TLD (final 2 parts), regardless of how many labels the name has
-        string memory parentName = string.concat(
-            parts[parts.length - 2],
-            ".",
-            parts[parts.length - 1]
-        );
+        string memory parentName = string.concat(parts[parts.length - 2], ".", parts[parts.length - 1]);
 
         // Encode the parent name
         bytes memory parentNameBytes = NameCoder.encode(parentName);

@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
-import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 /// @dev Smart contract wallet that accepts signatures from a single EOA
 contract MockERC1271Wallet is IERC1271, IERC721Receiver {
     address public immutable signer;
 
-    constructor(address _signer) {
+    constructor(
+        address _signer
+    ) {
         signer = _signer;
     }
 
@@ -17,10 +19,7 @@ contract MockERC1271Wallet is IERC1271, IERC721Receiver {
         bytes32 hash,
         bytes calldata signature
     ) external view returns (bytes4) {
-        return
-            ECDSA.recover(hash, signature) == signer
-                ? IERC1271.isValidSignature.selector
-                : bytes4(0);
+        return ECDSA.recover(hash, signature) == signer ? IERC1271.isValidSignature.selector : bytes4(0);
     }
 
     function onERC721Received(

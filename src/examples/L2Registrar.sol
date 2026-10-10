@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {StringUtils} from "@ensdomains/ens-contracts/utils/StringUtils.sol";
+import { StringUtils } from "@ensdomains/ens-contracts/utils/StringUtils.sol";
 
-import {IL2Registry} from "../interfaces/IL2Registry.sol";
+import { IL2Registry } from "../interfaces/IL2Registry.sol";
 
 /// @dev This is an example registrar contract that is mean to be modified.
 contract L2Registrar {
@@ -28,7 +28,9 @@ contract L2Registrar {
 
     /// @notice Initializes the registrar with a registry contract
     /// @param _registry Address of the L2Registry contract
-    constructor(address _registry) {
+    constructor(
+        address _registry
+    ) {
         // Save the chainId
         chainId = block.chainid;
 
@@ -42,7 +44,10 @@ contract L2Registrar {
     /// @notice Registers a new name
     /// @param label The label to register (e.g. "name" for "name.eth")
     /// @param owner The address that will own the name
-    function register(string calldata label, address owner) external {
+    function register(
+        string calldata label,
+        address owner
+    ) external {
         // Keep in sync with the minimum length in `available()`
         if (label.strlen() < 3) {
             revert LabelTooShort(label);
@@ -60,12 +65,7 @@ contract L2Registrar {
         registry.setAddr(node, 60, addr);
 
         // Register the name in the L2 registry
-        registry.createSubnode(
-            registry.baseNode(),
-            label,
-            owner,
-            new bytes[](0)
-        );
+        registry.createSubnode(registry.baseNode(), label, owner, new bytes[](0));
         emit NameRegistered(label, owner);
     }
 
@@ -73,7 +73,9 @@ contract L2Registrar {
     /// @dev Uses try-catch to handle the ERC721NonexistentToken error
     /// @param label The label to check availability for
     /// @return available True if the label can be registered, false if already taken
-    function available(string calldata label) external view returns (bool) {
+    function available(
+        string calldata label
+    ) external view returns (bool) {
         bytes32 node = _labelToNode(label);
         uint256 tokenId = uint256(node);
 

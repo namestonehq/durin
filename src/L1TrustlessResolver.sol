@@ -8,36 +8,33 @@ pragma solidity ^0.8.20;
 // ▐▌  ▐▌▐▌ ▐▌▐▌  ▐▌▐▙▄▄▖▗▄▄▞▘  █ ▝▚▄▞▘▐▌  ▐▌▐▙▄▄▖
 // ***********************************************
 
-import {ENS} from "@ensdomains/ens-contracts/registry/ENS.sol";
-import {GatewayFetcher, GatewayRequest} from "@unruggable/gateways/GatewayFetcher.sol";
-import {GatewayFetchTarget, IGatewayVerifier} from "@unruggable/gateways/GatewayFetchTarget.sol";
-import {IABIResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IABIResolver.sol";
-import {IAddressResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IAddressResolver.sol";
-import {IAddrResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IAddrResolver.sol";
-import {IContentHashResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IContentHashResolver.sol";
-import {IExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/IExtendedResolver.sol";
-import {ITextResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ITextResolver.sol";
-import {NameCoder} from "@ensdomains/ens-contracts/utils/NameCoder.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {strings} from "@arachnid/string-utils/strings.sol";
+import { ENS } from "@ensdomains/ens-contracts/registry/ENS.sol";
+import { GatewayFetcher, GatewayRequest } from "@unruggable/gateways/GatewayFetcher.sol";
+import { GatewayFetchTarget, IGatewayVerifier } from "@unruggable/gateways/GatewayFetchTarget.sol";
+import { IABIResolver } from "@ensdomains/ens-contracts/resolvers/profiles/IABIResolver.sol";
+import { IAddressResolver } from "@ensdomains/ens-contracts/resolvers/profiles/IAddressResolver.sol";
+import { IAddrResolver } from "@ensdomains/ens-contracts/resolvers/profiles/IAddrResolver.sol";
+import { IContentHashResolver } from "@ensdomains/ens-contracts/resolvers/profiles/IContentHashResolver.sol";
+import { IExtendedResolver } from "@ensdomains/ens-contracts/resolvers/profiles/IExtendedResolver.sol";
+import { ITextResolver } from "@ensdomains/ens-contracts/resolvers/profiles/ITextResolver.sol";
+import { NameCoder } from "@ensdomains/ens-contracts/utils/NameCoder.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { strings } from "@arachnid/string-utils/strings.sol";
 
-import {IOffchainResolverMetadataProvider} from "./interfaces/IOffchainResolverMetadataProvider.sol";
-import {IOperationRouter} from "./interfaces/IOperationRouter.sol";
-import {IUniversalHelper} from "./interfaces/IUniversalHelper.sol";
+import { IOffchainResolverMetadataProvider } from "./interfaces/IOffchainResolverMetadataProvider.sol";
+import { IOperationRouter } from "./interfaces/IOperationRouter.sol";
+import { IUniversalHelper } from "./interfaces/IUniversalHelper.sol";
 
 interface INameWrapper {
-    function ownerOf(uint256 id) external view returns (address owner);
+    function ownerOf(
+        uint256 id
+    ) external view returns (address owner);
 }
 
 /// @author NameStone
 /// @notice ENS resolver that directs all queries to Unruggable Gateways for trustless resolution of data from L2s.
 /// @dev Callers must implement EIP-3668 and ENSIP-10.
-contract L1TrustlessResolver is
-    GatewayFetchTarget,
-    IExtendedResolver,
-    IOffchainResolverMetadataProvider,
-    Ownable
-{
+contract L1TrustlessResolver is GatewayFetchTarget, IExtendedResolver, IOffchainResolverMetadataProvider, Ownable {
     using GatewayFetcher for GatewayRequest;
 
     /*//////////////////////////////////////////////////////////////
@@ -126,16 +123,8 @@ contract L1TrustlessResolver is
             revert Unauthorized();
         }
 
-        l2Registry[node] = L2Registry({
-            chainId: targetChainId,
-            registryAddress: targetRegistryAddress
-        });
-        emit MetadataChanged(
-            name,
-            new string[](0),
-            targetChainId,
-            targetRegistryAddress
-        );
+        l2Registry[node] = L2Registry({ chainId: targetChainId, registryAddress: targetRegistryAddress });
+        emit MetadataChanged(name, new string[](0), targetChainId, targetRegistryAddress);
     }
 
     /// @notice Resolves a name, as specified by ENSIP 10.
@@ -150,10 +139,7 @@ contract L1TrustlessResolver is
         L2Registry memory targetL2Registry = l2Registry[parentNode];
         IGatewayVerifier v = verifier[targetL2Registry.chainId];
 
-        if (
-            targetL2Registry.registryAddress == address(0) ||
-            address(v) == address(0)
-        ) {
+        if (targetL2Registry.registryAddress == address(0) || address(v) == address(0)) {
             revert UnreachableName(name);
         }
 
@@ -162,10 +148,7 @@ contract L1TrustlessResolver is
 
         // ENSIP-20 / ERC-7884
         if (selector == IOperationRouter.getOperationHandler.selector) {
-            revert IOperationRouter.OperationHandledOnchain(
-                targetL2Registry.chainId,
-                targetL2Registry.registryAddress
-            );
+            revert IOperationRouter.OperationHandledOnchain(targetL2Registry.chainId, targetL2Registry.registryAddress);
         }
 
         // Build a Unruggable Gateways request based on the function selector of the passed calldata
@@ -210,22 +193,10 @@ contract L1TrustlessResolver is
     /// @inheritdoc IOffchainResolverMetadataProvider
     function metadata(
         bytes calldata name
-    )
-        external
-        view
-        returns (
-            string[] memory rpcUrls,
-            uint256 chainId,
-            address baseRegistry
-        )
-    {
+    ) external view returns (string[] memory rpcUrls, uint256 chainId, address baseRegistry) {
         L2Registry memory targetL2Registry = l2Registry[getParentNode(name)];
 
-        return (
-            new string[](0),
-            targetL2Registry.chainId,
-            targetL2Registry.registryAddress
-        );
+        return (new string[](0), targetL2Registry.chainId, targetL2Registry.registryAddress);
     }
 
     /// @notice The callback for the `OffchainLookup` triggered by our implementation of `IExtendedResolver` (ENSIP-10).
@@ -243,11 +214,11 @@ contract L1TrustlessResolver is
         return abi.encode(value);
     }
 
-    function supportsInterface(bytes4 id) external pure returns (bool) {
-        return
-            id == type(IExtendedResolver).interfaceId ||
-            id == type(IOffchainResolverMetadataProvider).interfaceId ||
-            id == 0x01ffc9a7; // ERC-165 interface
+    function supportsInterface(
+        bytes4 id
+    ) external pure returns (bool) {
+        return id == type(IExtendedResolver).interfaceId || id == type(IOffchainResolverMetadataProvider).interfaceId
+            || id == 0x01ffc9a7; // ERC-165 interface
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -293,16 +264,12 @@ contract L1TrustlessResolver is
         string[] memory parts = new string[](strings.count(s, delim) + 1);
 
         // Populate the parts array into ['sub', 'name', 'eth']
-        for (uint i = 0; i < parts.length; i++) {
+        for (uint256 i = 0; i < parts.length; i++) {
             parts[i] = strings.toString(strings.split(s, delim));
         }
 
         // Get the 2LD + TLD (final 2 parts), regardless of how many labels the name has
-        string memory parentName = string.concat(
-            parts[parts.length - 2],
-            ".",
-            parts[parts.length - 1]
-        );
+        string memory parentName = string.concat(parts[parts.length - 2], ".", parts[parts.length - 1]);
 
         bytes memory parentNameBytes = NameCoder.encode(parentName);
         return NameCoder.namehash(parentNameBytes, 0);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 library SignatureVerifier {
     /**
@@ -16,16 +16,7 @@ library SignatureVerifier {
         bytes memory request,
         bytes memory result
     ) internal pure returns (bytes32) {
-        return
-            keccak256(
-                abi.encodePacked(
-                    hex"1900",
-                    target,
-                    expires,
-                    keccak256(request),
-                    keccak256(result)
-                )
-            );
+        return keccak256(abi.encodePacked(hex"1900", target, expires, keccak256(request), keccak256(result)));
     }
 
     /**
@@ -40,18 +31,9 @@ library SignatureVerifier {
         bytes calldata request,
         bytes calldata response
     ) internal view returns (address, bytes memory) {
-        (bytes memory result, uint64 expires, bytes memory sig) = abi.decode(
-            response,
-            (bytes, uint64, bytes)
-        );
-        address signer = ECDSA.recover(
-            makeSignatureHash(address(this), expires, request, result),
-            sig
-        );
-        require(
-            expires >= block.timestamp,
-            "SignatureVerifier: Signature expired"
-        );
+        (bytes memory result, uint64 expires, bytes memory sig) = abi.decode(response, (bytes, uint64, bytes));
+        address signer = ECDSA.recover(makeSignatureHash(address(this), expires, request, result), sig);
+        require(expires >= block.timestamp, "SignatureVerifier: Signature expired");
         return (signer, result);
     }
 }
