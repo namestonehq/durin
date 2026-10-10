@@ -97,8 +97,25 @@ This repo includes all of the smart contract (L1 and L2) required to enable subn
 
 ![architecture](https://github.com/user-attachments/assets/06065784-0516-498e-a512-d7b63892599a)
 
-> [!NOTE]  
-> A dependency for supporting `-withSignature` methods on new chains is a deployment of UniversalSigValidator to `0x164af34fAF9879394370C7f09064127C043A35E9`. The deployment is permissionless and can be found [here](https://github.com/ensdomains/ens-contracts/blob/8c414e4c41dce49c49efd0bf82c10a145cdc8f0a/deploy/utils/00_deploy_universal_sig_validator.ts).
+### Signed record updates
+
+The registry doesn't verify signatures itself. To let someone other than the name owner submit record updates on the owner's behalf (e.g. so the owner doesn't pay gas), deploy a registrar that verifies signatures and add it to the registry with `addRegistrar()`. Because registrars are trusted by the registry, the signature scheme can be changed later by swapping registrars, without deploying a new registry.
+
+[L2SignatureRegistrar.sol](./src/examples/L2SignatureRegistrar.sol) is an example. Its `setRecords()` method accepts calls to the registry's record setters (`setAddr`, `setText`, `setContenthash` and `setABI`) for a single name, signed with EIP-712:
+
+```solidity
+SetRecords(bytes32 node, bytes[] data, uint256 nonce, uint256 deadline)
+```
+
+- The signer must be the owner of the name, an operator approved via `setApprovalForAll()` or the address approved for the token via `approve()`. Signatures from EOAs and deployed ERC-1271 smart contract wallets are supported. Smart contract wallets that haven't been deployed yet (ERC-6492) are not.
+- `nonce` is `nonces(signer)` on the signature registrar. Each signature can only be used once, and signers can cancel outstanding signatures with `invalidateNonce()`. There is one nonce per signer across all of their names, so if a signer pre-signs several updates, they must be submitted in the order they were signed.
+- The EIP-712 domain includes the chain ID and the signature registrar's address, so signatures can't be replayed on another chain or through another registrar.
+
+### Trust model
+
+- The admin of a registry is whoever owns the token for the registry's base name. Transferring that token (or approving an operator for it) hands over the ability to add and remove registrars.
+- Registrars are fully trusted. They can create subnames under any name in the registry and update the records of any name, not only the names they registered. Only add registrar contracts you trust. This includes signature registrars, which must correctly check that a signer is authorized for the name before updating its records.
+- Besides registrars, a name's records can be updated, and subnames created under it, by its owner, an operator approved via `setApprovalForAll()` and the address approved for the token via `approve()`. In other words, anyone who can transfer a name can manage it.
 
 ## Deploying Durin
 
