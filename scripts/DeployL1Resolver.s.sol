@@ -18,7 +18,8 @@ contract DeployL1Resolver is Script {
         new L1Resolver{salt: 0}(
             vm.envString("L1_RESOLVER_URL"),
             vm.envAddress("L1_RESOLVER_SIGNER"),
-            vm.envAddress("L1_RESOLVER_OWNER")
+            vm.envAddress("L1_RESOLVER_OWNER"),
+            IUniversalHelper(vm.envOr("UNIVERSAL_HELPER", address(0)))
         );
 
         vm.stopBroadcast();

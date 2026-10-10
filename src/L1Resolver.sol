@@ -16,6 +16,7 @@ import {strings} from "@arachnid/string-utils/strings.sol";
 
 import {IOffchainResolverMetadataProvider} from "./interfaces/IOffchainResolverMetadataProvider.sol";
 import {IOperationRouter} from "./interfaces/IOperationRouter.sol";
+import {IUniversalHelper} from "./interfaces/IUniversalHelper.sol";
 import {SignatureVerifier} from "./lib/SignatureVerifier.sol";
 
 interface IResolverService {
@@ -36,10 +37,6 @@ interface IResolver {
 
 interface INameWrapper {
     function ownerOf(uint256 id) external view returns (address owner);
-}
-
-interface IV2EthRegistry {
-    function findOwner(string calldata label) external view returns (address owner);
 }
 
 /// @author NameStone
@@ -64,7 +61,6 @@ contract L1Resolver is
     //////////////////////////////////////////////////////////////*/
 
     ENS public constant ens = ENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
-    IV2EthRegistry public constant v2EthRegistry = IV2EthRegistry(0xDEDB92913A25abE1f7BCDD85D8A344a43B398B67);
 
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
@@ -73,6 +69,8 @@ contract L1Resolver is
     string public url;
     address public signer;
     INameWrapper public immutable nameWrapper;
+    /// @dev Used to look up ENSv2 owners. Zero address if ENSv2 is not deployed.
+    IUniversalHelper public immutable universalHelper;
 
     mapping(bytes32 node => L2Registry l2Registry) public l2Registry;
 
@@ -105,7 +103,8 @@ contract L1Resolver is
     constructor(
         string memory _url,
         address _signer,
-        address _owner
+        address _owner,
+        IUniversalHelper _universalHelper
     ) Ownable(_owner) {
         url = _url;
         emit GatewayChanged(_url);
@@ -118,34 +117,17 @@ contract L1Resolver is
         address _wrapperResolver = ens.resolver(_wrapperNode);
         address _wrapperAddr = IResolver(_wrapperResolver).addr(_wrapperNode);
         nameWrapper = INameWrapper(_wrapperAddr);
+
+        universalHelper = _universalHelper;
     }
 
     /*//////////////////////////////////////////////////////////////
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Specify the L2 registry for a given ENSv2 name. Enter a 2LD label, e.g. "nick" for "nick.eth".
-    function setL2RegistryV2(
-        string calldata label,
-        uint64 targetChainId,
-        address targetRegistryAddress
-    ) external {
-        address owner = v2EthRegistry.findOwner(label);
-        if (owner != msg.sender) {
-            revert Unauthorized();
-        }
-
-        bytes memory name = NameCoder.encode(string.concat(label, ".eth"));
-        _setL2Registry(
-            name,
-            NameCoder.namehash(name, 0),
-            targetChainId,
-            targetRegistryAddress
-        );
-    }
-
-    /// @notice Specify the L2 registry for a given ENSv1 name
-    /// @dev Should only be used with 2LDs, e.g. "nick.eth".
+    /// @notice Specify the L2 registry for a given name
+    /// @dev Should only be used with 2LDs, e.g. "nick.eth". Callable by the name's ENSv2 owner, or its ENSv1 owner
+    ///      if the name has no ENSv2 owner.
     /// @param name DNS-encoded name
     /// @param targetChainId Chain identifier
     /// @param targetRegistryAddress Registry address on target chain
@@ -155,17 +137,21 @@ contract L1Resolver is
         address targetRegistryAddress
     ) external {
         bytes32 node = NameCoder.namehash(name, 0);
-        address owner = ens.owner(node);
 
-        if (owner == address(nameWrapper)) {
-            owner = nameWrapper.ownerOf(uint256(node));
-        }
-
-        if (owner != msg.sender) {
+        if (_findOwner(name, node) != msg.sender) {
             revert Unauthorized();
         }
 
-        _setL2Registry(name, node, targetChainId, targetRegistryAddress);
+        l2Registry[node] = L2Registry({
+            chainId: targetChainId,
+            registryAddress: targetRegistryAddress
+        });
+        emit MetadataChanged(
+            name,
+            new string[](0),
+            targetChainId,
+            targetRegistryAddress
+        );
     }
 
     /// @notice Resolves a name, as specified by ENSIP 10.
@@ -316,21 +302,21 @@ contract L1Resolver is
         return parentNode;
     }
 
-    function _setL2Registry(
-        bytes memory name,
-        bytes32 node,
-        uint64 targetChainId,
-        address targetRegistryAddress
-    ) internal {
-        l2Registry[node] = L2Registry({
-            chainId: targetChainId,
-            registryAddress: targetRegistryAddress
-        });
-        emit MetadataChanged(
-            name,
-            new string[](0),
-            targetChainId,
-            targetRegistryAddress
-        );
+    /// @dev Returns the ENSv2 owner of a name, falling back to the ENSv1 owner if there is none
+    function _findOwner(
+        bytes calldata name,
+        bytes32 node
+    ) internal view returns (address owner) {
+        if (address(universalHelper) != address(0)) {
+            owner = universalHelper.findExactOwner(name);
+            if (owner != address(0)) {
+                return owner;
+            }
+        }
+
+        owner = ens.owner(node);
+        if (owner == address(nameWrapper)) {
+            owner = nameWrapper.ownerOf(uint256(node));
+        }
     }
 }

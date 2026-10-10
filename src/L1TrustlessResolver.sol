@@ -23,6 +23,7 @@ import {strings} from "@arachnid/string-utils/strings.sol";
 
 import {IOffchainResolverMetadataProvider} from "./interfaces/IOffchainResolverMetadataProvider.sol";
 import {IOperationRouter} from "./interfaces/IOperationRouter.sol";
+import {IUniversalHelper} from "./interfaces/IUniversalHelper.sol";
 
 interface INameWrapper {
     function ownerOf(uint256 id) external view returns (address owner);
@@ -66,6 +67,8 @@ contract L1TrustlessResolver is
     //////////////////////////////////////////////////////////////*/
 
     INameWrapper public immutable nameWrapper;
+    /// @dev Used to look up ENSv2 owners. Zero address if ENSv2 is not deployed.
+    IUniversalHelper public immutable universalHelper;
 
     mapping(bytes32 node => L2Registry l2Registry) public l2Registry;
 
@@ -88,13 +91,18 @@ contract L1TrustlessResolver is
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address _owner) Ownable(_owner) {
+    constructor(
+        address _owner,
+        IUniversalHelper _universalHelper
+    ) Ownable(_owner) {
         // Get the NameWrapper address from namewrapper.eth
         // This allows us to have the same deploy bytecode on mainnet and sepolia
         bytes32 wrapperNode = 0xdee478ba2734e34d81c6adc77a32d75b29007895efa2fe60921f1c315e1ec7d9; // namewrapper.eth
         address wrapperResolver = ens.resolver(wrapperNode);
         address wrapperAddr = IAddrResolver(wrapperResolver).addr(wrapperNode);
         nameWrapper = INameWrapper(wrapperAddr);
+
+        universalHelper = _universalHelper;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -102,7 +110,8 @@ contract L1TrustlessResolver is
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Specify the L2 registry for a given name
-    /// @dev Should only be used with 2LDs, e.g. "nick.eth".
+    /// @dev Should only be used with 2LDs, e.g. "nick.eth". Callable by the name's ENSv2 owner, or its ENSv1 owner
+    ///      if the name has no ENSv2 owner.
     /// @param name DNS-encoded name
     /// @param targetChainId Chain identifier
     /// @param targetRegistryAddress Registry address on target chain
@@ -112,13 +121,8 @@ contract L1TrustlessResolver is
         address targetRegistryAddress
     ) external {
         bytes32 node = NameCoder.namehash(name, 0);
-        address owner = ens.owner(node);
 
-        if (owner == address(nameWrapper)) {
-            owner = nameWrapper.ownerOf(uint256(node));
-        }
-
-        if (owner != msg.sender) {
+        if (_findOwner(name, node) != msg.sender) {
             revert Unauthorized();
         }
 
@@ -261,6 +265,24 @@ contract L1TrustlessResolver is
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    /// @dev Returns the ENSv2 owner of a name, falling back to the ENSv1 owner if there is none
+    function _findOwner(
+        bytes calldata name,
+        bytes32 node
+    ) internal view returns (address owner) {
+        if (address(universalHelper) != address(0)) {
+            owner = universalHelper.findExactOwner(name);
+            if (owner != address(0)) {
+                return owner;
+            }
+        }
+
+        owner = ens.owner(node);
+        if (owner == address(nameWrapper)) {
+            owner = nameWrapper.ownerOf(uint256(node));
+        }
+    }
 
     function getParentNode(
         bytes calldata name
