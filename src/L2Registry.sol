@@ -77,7 +77,8 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Only the owner of the node or a registrar can call the function
+    /// @dev Only the owner of the node, an operator approved by the owner, the address approved for the token or a
+    ///      registrar can call the function. This matches who can update the node's records.
     modifier onlyOwnerOrRegistrar(bytes32 node) {
         _onlyOwnerOrRegistrar(node);
         _;
@@ -127,7 +128,8 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Creates a subnode from a parent node and label
-    /// @dev Only callable by the owner of the parent node
+    /// @dev Only callable by the owner of the parent node, an operator approved by the owner, the address approved for
+    ///      the parent token or a registrar
     /// @param node The parent node, e.g. `namehash("name.eth")` for "name.eth"
     /// @param label The label of the subnode, e.g. "x" for "x.name.eth"
     /// @param _owner The address that will own the subnode
@@ -147,14 +149,15 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
             revert NotAvailable(label, node);
         }
 
-        // Update state before `_safeMint()` which calls `onERC721Received()` on `_owner`
+        // Update state and emit events before `_safeMint()` which calls `onERC721Received()` on `_owner`
         names[subnode] = dnsEncodedName;
         totalSupply++;
-        _safeMint(_owner, uint256(subnode));
-        _multicall(subnode, data);
-
         emit NewOwner(node, labelhash, _owner);
         emit SubnodeCreated(subnode, dnsEncodedName, _owner);
+
+        // Records are set after minting so the new owner is authorised for them
+        _safeMint(_owner, uint256(subnode));
+        _multicall(subnode, data);
         return subnode;
     }
 
@@ -270,7 +273,13 @@ contract L2Registry is ERC721, Initializable, L2Resolver {
     }
 
     function _onlyOwnerOrRegistrar(bytes32 node) internal view {
-        if (owner(node) != msg.sender && !registrars[msg.sender]) {
+        address nodeOwner = owner(node);
+        if (
+            nodeOwner != msg.sender &&
+            !registrars[msg.sender] &&
+            !isApprovedForAll(nodeOwner, msg.sender) &&
+            _getApproved(uint256(node)) != msg.sender
+        ) {
             revert Unauthorized(node);
         }
     }

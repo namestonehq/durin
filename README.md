@@ -107,15 +107,15 @@ The registry doesn't verify signatures itself. To let someone other than the nam
 SetRecords(bytes32 node, bytes[] data, uint256 nonce, uint256 deadline)
 ```
 
-- The signer must be the owner of the name, an operator approved via `setApprovalForAll()` or the address approved for the token via `approve()`. Signatures from EOAs and ERC-1271 smart contract wallets are supported.
-- `nonce` is `nonces(signer)` on the signature registrar. Each signature can only be used once, and signers can cancel outstanding signatures with `invalidateNonce()`.
+- The signer must be the owner of the name, an operator approved via `setApprovalForAll()` or the address approved for the token via `approve()`. Signatures from EOAs and deployed ERC-1271 smart contract wallets are supported. Smart contract wallets that haven't been deployed yet (ERC-6492) are not.
+- `nonce` is `nonces(signer)` on the signature registrar. Each signature can only be used once, and signers can cancel outstanding signatures with `invalidateNonce()`. There is one nonce per signer across all of their names, so if a signer pre-signs several updates, they must be submitted in the order they were signed.
 - The EIP-712 domain includes the chain ID and the signature registrar's address, so signatures can't be replayed on another chain or through another registrar.
 
 ### Trust model
 
 - The admin of a registry is whoever owns the token for the registry's base name. Transferring that token (or approving an operator for it) hands over the ability to add and remove registrars.
 - Registrars are fully trusted. They can create subnames under any name in the registry and update the records of any name, not only the names they registered. Only add registrar contracts you trust. This includes signature registrars, which must correctly check that a signer is authorized for the name before updating its records.
-- Besides registrars, the records of a name can be updated by its owner, an operator approved via `setApprovalForAll()` and the address approved for the token via `approve()`.
+- Besides registrars, a name's records can be updated, and subnames created under it, by its owner, an operator approved via `setApprovalForAll()` and the address approved for the token via `approve()`. In other words, anyone who can transfer a name can manage it.
 
 ## Deploying Durin
 

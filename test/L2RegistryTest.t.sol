@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, Vm} from "forge-std/Test.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 import {NameCoder} from "@ensdomains/ens-contracts/utils/NameCoder.sol";
@@ -446,6 +446,73 @@ contract L2RegistryTest is Test {
             "child.parent.testname.eth"
         );
         assertEq(registry.totalSupply(), 3);
+    }
+
+    function test_CreateSubnodeEmitsParentEventsFirst() public {
+        // The receiver creates "child" under "parent" from within `onERC721Received()`
+        ReentrantReceiver receiver = new ReentrantReceiver(address(registry));
+        bytes32 parentNode = registry.makeNode(registry.baseNode(), "parent");
+        bytes32 childNode = registry.makeNode(parentNode, "child");
+
+        vm.recordLogs();
+        _registerTo("parent", address(receiver));
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        bytes32[] memory created = new bytes32[](2);
+        uint256 count = 0;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (
+                logs[i].topics[0] ==
+                keccak256("SubnodeCreated(bytes32,bytes,address)")
+            ) {
+                created[count++] = logs[i].topics[1];
+            }
+        }
+        assertEq(count, 2);
+        assertEq(created[0], parentNode);
+        assertEq(created[1], childNode);
+    }
+
+    function test_CreateSubnodeByOperator() public {
+        bytes32 node = _registerTo("name", user1);
+
+        vm.prank(user1);
+        registry.setApprovalForAll(user2, true);
+
+        vm.prank(user2);
+        bytes32 subnode = registry.createSubnode(
+            node,
+            "sub",
+            user2,
+            new bytes[](0)
+        );
+        assertEq(registry.owner(subnode), user2);
+    }
+
+    function test_CreateSubnodeByApprovedAddress() public {
+        bytes32 node = _registerTo("name", user1);
+
+        vm.prank(user1);
+        registry.approve(user2, uint256(node));
+
+        vm.prank(user2);
+        bytes32 subnode = registry.createSubnode(
+            node,
+            "sub",
+            user2,
+            new bytes[](0)
+        );
+        assertEq(registry.owner(subnode), user2);
+    }
+
+    function test_CreateSubnodeUnderNonexistentNodeReverts() public {
+        bytes32 node = registry.makeNode(registry.baseNode(), "missing");
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IL2Resolver.Unauthorized.selector, node)
+        );
+        vm.prank(user1);
+        registry.createSubnode(node, "sub", user1, new bytes[](0));
     }
 
     function test_ExampleRegistrarEnforcesMinimumLength() public {
