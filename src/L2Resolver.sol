@@ -13,11 +13,9 @@ import {AddrResolver} from "@ensdomains/ens-contracts/resolvers/profiles/AddrRes
 import {COIN_TYPE_DEFAULT, ENSIP19} from "@ensdomains/ens-contracts/utils/ENSIP19.sol";
 import {ContentHashResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ContentHashResolver.sol";
 import {ExtendedResolver} from "@ensdomains/ens-contracts/resolvers/profiles/ExtendedResolver.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {Multicallable} from "@ensdomains/ens-contracts/resolvers/Multicallable.sol";
 import {TextResolver} from "@ensdomains/ens-contracts/resolvers/profiles/TextResolver.sol";
 
-import {IUniversalSignatureValidator} from "./interfaces/IUniversalSignatureValidator.sol";
 import {L2Registry} from "./L2Registry.sol";
 
 /// @title Durin Resolver
@@ -32,133 +30,15 @@ contract L2Resolver is
     TextResolver,
     ExtendedResolver
 {
-    using MessageHashUtils for bytes32;
-
-    /*//////////////////////////////////////////////////////////////
-                               CONSTANTS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @dev ERC-6492: Signature Validation for Predeploy Contracts
-    IUniversalSignatureValidator private immutable universalSignatureValidator =
-        IUniversalSignatureValidator(
-            0x164af34fAF9879394370C7f09064127C043A35E9
-        );
-
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
     error Unauthorized(bytes32 node);
-    error SignatureExpired();
-
-    /*//////////////////////////////////////////////////////////////
-                               MODIFIERS
-    //////////////////////////////////////////////////////////////*/
-
-    modifier unexpiredSignature(uint256 expiration) {
-        _unexpiredSignature(expiration);
-        _;
-    }
 
     /*//////////////////////////////////////////////////////////////
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
-    function setAddrWithSignature(
-        bytes32 node,
-        uint256 coinType,
-        bytes memory a,
-        uint256 expiration,
-        address signer,
-        bytes calldata signature
-    ) public unexpiredSignature(expiration) {
-        bytes32 sigHash = keccak256(
-            abi.encodePacked(address(this), node, coinType, a, expiration)
-        ).toEthSignedMessageHash();
-
-        if (
-            !_isAuthorisedForAddress(signer, node) ||
-            !universalSignatureValidator.isValidSig(signer, sigHash, signature)
-        ) {
-            revert Unauthorized(node);
-        }
-
-        setAddr(node, coinType, a);
-    }
-
-    function setTextWithSignature(
-        bytes32 node,
-        string memory key,
-        string memory value,
-        uint256 expiration,
-        address signer,
-        bytes calldata signature
-    ) public unexpiredSignature(expiration) {
-        bytes32 sigHash = keccak256(
-            abi.encodePacked(address(this), node, key, value, expiration)
-        ).toEthSignedMessageHash();
-
-        if (
-            !_isAuthorisedForAddress(signer, node) ||
-            !universalSignatureValidator.isValidSig(signer, sigHash, signature)
-        ) {
-            revert Unauthorized(node);
-        }
-
-        // Manually update storage since `setText()` on the inherited contract cannot be called internally
-        versionable_texts[recordVersions[node]][node][key] = value;
-        emit TextChanged(node, key, key, value);
-    }
-
-    function setContenthashWithSignature(
-        bytes32 node,
-        bytes memory hash,
-        uint256 expiration,
-        address signer,
-        bytes calldata signature
-    ) public unexpiredSignature(expiration) {
-        bytes32 sigHash = keccak256(
-            abi.encodePacked(address(this), node, hash, expiration)
-        ).toEthSignedMessageHash();
-
-        if (
-            !_isAuthorisedForAddress(signer, node) ||
-            !universalSignatureValidator.isValidSig(signer, sigHash, signature)
-        ) {
-            revert Unauthorized(node);
-        }
-
-        // Manually update storage since `setContenthash()` on the inherited contract cannot be called internally
-        versionable_hashes[recordVersions[node]][node] = hash;
-        emit ContenthashChanged(node, hash);
-    }
-
-    function setABIWithSignature(
-        bytes32 node,
-        uint256 contentType,
-        bytes memory data,
-        uint256 expiration,
-        address signer,
-        bytes calldata signature
-    ) public unexpiredSignature(expiration) {
-        bytes32 sigHash = keccak256(
-            abi.encodePacked(address(this), node, contentType, data, expiration)
-        ).toEthSignedMessageHash();
-
-        if (
-            !_isAuthorisedForAddress(signer, node) ||
-            !universalSignatureValidator.isValidSig(signer, sigHash, signature)
-        ) {
-            revert Unauthorized(node);
-        }
-
-        // Content types must be powers of 2
-        require(((contentType - 1) & contentType) == 0);
-
-        // Manually update storage since `setABI()` on the inherited contract cannot be called internally
-        versionable_abis[recordVersions[node]][node][contentType] = data;
-        emit ABIChanged(node, contentType);
-    }
 
     /// Override the inherited function to support default EVM address
     /// @inheritdoc AddrResolver
@@ -180,6 +60,8 @@ contract L2Resolver is
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev Registrars are authorised for every node in the registry. Otherwise, the owner of the node, an operator
+    ///      approved via `setApprovalForAll()` or the address approved for the token via `approve()` is authorised.
     function _isAuthorisedForAddress(
         address _addr,
         bytes32 _node
@@ -193,7 +75,11 @@ contract L2Resolver is
         uint256 tokenId = uint256(_node);
         address owner = registry.ownerOf(tokenId);
 
-        if ((owner != _addr) && (registry.getApproved(tokenId) != _addr)) {
+        if (
+            owner != _addr &&
+            !registry.isApprovedForAll(owner, _addr) &&
+            registry.getApproved(tokenId) != _addr
+        ) {
             revert Unauthorized(_node);
         }
 
@@ -202,12 +88,6 @@ contract L2Resolver is
 
     function _registry() internal view returns (L2Registry) {
         return L2Registry(address(this));
-    }
-
-    function _unexpiredSignature(uint256 expiration) internal view {
-        if (block.timestamp > expiration) {
-            revert SignatureExpired();
-        }
     }
 
     /*//////////////////////////////////////////////////////////////

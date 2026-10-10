@@ -14,11 +14,14 @@ contract L2Registrar {
     /// @param owner The owner of the newly registered name
     event NameRegistered(string indexed label, address indexed owner);
 
+    /// @notice Thrown when a label is shorter than the minimum length
+    error LabelTooShort(string label);
+
     /// @notice Reference to the target registry contract
     IL2Registry public immutable registry;
 
     /// @notice The chainId for the current chain
-    uint256 public chainId;
+    uint256 public immutable chainId;
 
     /// @notice The coinType for the current chain (ENSIP-11)
     uint256 public immutable coinType;
@@ -26,13 +29,11 @@ contract L2Registrar {
     /// @notice Initializes the registrar with a registry contract
     /// @param _registry Address of the L2Registry contract
     constructor(address _registry) {
-        // Save the chainId in memory (can only access this in assembly)
-        assembly {
-            sstore(chainId.slot, chainid())
-        }
+        // Save the chainId
+        chainId = block.chainid;
 
         // Calculate the coinType for the current chain according to ENSIP-11
-        coinType = (0x80000000 | chainId) >> 0;
+        coinType = 0x80000000 | block.chainid;
 
         // Save the registry address
         registry = IL2Registry(_registry);
@@ -42,6 +43,11 @@ contract L2Registrar {
     /// @param label The label to register (e.g. "name" for "name.eth")
     /// @param owner The address that will own the name
     function register(string calldata label, address owner) external {
+        // Keep in sync with the minimum length in `available()`
+        if (label.strlen() < 3) {
+            revert LabelTooShort(label);
+        }
+
         bytes32 node = _labelToNode(label);
         bytes memory addr = abi.encodePacked(owner); // Convert address to bytes
 
